@@ -1,0 +1,1 @@
+A full-stack Airbnb and dining experience clone built with the MERN stack (MongoDB, Express, Node.js) and vanilla JavaScript. Features end-to-end CRUD operations, interactive star ratings, category filtering, search, and dynamic stay/dining detail views.
