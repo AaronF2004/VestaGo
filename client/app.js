@@ -1,4 +1,4 @@
-const API_URL = "https://vestago.onrender.com";
+const API_URL = "https://vestago.onrender.com/api/listings";
 
 // State
 let currentFilter = 'all';
