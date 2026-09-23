@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airbnb | Vacation Rentals & Dining</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="logo" onclick="window.location.reload()">
+      <i class="fa-brands fa-airbnb airbnb-icon"></i>
+      <span>Airbnb</span>
+    </div>
+
+    <!-- Search Input -->
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search by city, villa, or restaurant..." />
+      <button id="searchBtn"><i class="fa-solid fa-magnifying-glass"></i></button>
+    </div>
+
+    <div class="nav-actions">
+      <button class="btn-host" id="openCreateModalBtn">Airbnb your home</button>
+      
+      <!-- User Pill with Dropdown -->
+      <div class="user-menu-wrapper">
+        <button class="user-pill" id="userMenuBtn">
+          <i class="fa-solid fa-bars"></i>
+          <i class="fa-solid fa-circle-user avatar"></i>
+        </button>
+
+        <div class="user-dropdown" id="userDropdown">
+          <div id="loggedOutMenu">
+            <button class="dropdown-item bold" onclick="openAuthModal('Sign Up')">Sign up</button>
+            <button class="dropdown-item" onclick="openAuthModal('Log In')">Log in</button>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" onclick="openCreateModal()">Host an experience</button>
+          </div>
+          <div id="loggedInMenu" style="display: none;">
+            <div class="dropdown-user-info" id="userNameDisplay">Welcome, User</div>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" onclick="openCreateModal()">Add a Listing</button>
+            <button class="dropdown-item text-danger" onclick="logoutUser()">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Filter Category Tabs -->
+  <section class="filters-container">
+    <div class="filter-tab active" data-filter="all">
+      <i class="fa-solid fa-earth-americas"></i>
+      <span>All</span>
+    </div>
+    <div class="filter-tab" data-filter="hotel">
+      <i class="fa-solid fa-bed"></i>
+      <span>Hotels & Stays</span>
+    </div>
+    <div class="filter-tab" data-filter="restaurant">
+      <i class="fa-solid fa-utensils"></i>
+      <span>Dining & Bistros</span>
+    </div>
+  </section>
+
+  <!-- Listings Grid -->
+  <main class="container">
+    <div id="listingsGrid" class="listings-grid"></div>
+  </main>
+
+  <!-- DETAIL MODAL (Opens on Card Click) -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-card detail-card">
+      <button class="close-btn detail-close" id="closeDetailModalBtn">&times;</button>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <!-- CREATE / EDIT LISTING MODAL -->
+  <div class="modal-overlay" id="listingModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Host a New Place</h3>
+        <button class="close-btn" id="closeModalBtn">&times;</button>
+      </div>
+      <form id="listingForm">
+        <input type="hidden" id="listingId" />
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" id="titleInput" placeholder="e.g. Modern Glass Villa" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Category Type</label>
+            <select id="typeInput" required>
+              <option value="hotel">Hotel / Villa</option>
+              <option value="restaurant">Restaurant / Bistro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Price (₹)</label>
+            <input type="number" id="priceInput" placeholder="4500" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <input type="text" id="locationInput" placeholder="e.g. Goa, India" required />
+        </div>
+        <div class="form-group">
+          <label>Image URL</label>
+          <input type="url" id="imageInput" placeholder="https://images.unsplash.com/..." required />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="descInput" rows="3" placeholder="Tell guests about your place..." required></textarea>
+        </div>
+        <button type="submit" class="submit-btn" id="submitFormBtn">Save Listing</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL (Sign Up / Log In) -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-card auth-card">
+      <div class="modal-header">
+        <h3 id="authModalTitle">Log In or Sign Up</h3>
+        <button class="close-btn" id="closeAuthModalBtn">&times;</button>
+      </div>
+      <form id="authForm">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="authName" placeholder="John Doe" required />
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="authEmail" placeholder="user@example.com" required />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="authPassword" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="submit-btn" id="authSubmitBtn">Continue</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,515 @@
+:root {
+  --primary: #ff385c;
+  --text-dark: #222222;
+  --text-muted: #717171;
+  --border-light: #ebebeb;
+  --bg-light: #ffffff;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 40px;
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.airbnb-icon {
+  font-size: 2.2rem;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 40px;
+  padding: 6px 8px 6px 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  width: 42%;
+  max-width: 480px;
+}
+
+.search-bar input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.search-bar button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-host {
+  background: transparent;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  transition: 0.2s;
+}
+
+.btn-host:hover {
+  background-color: #f7f7f7;
+}
+
+/* User Dropdown */
+.user-menu-wrapper {
+  position: relative;
+}
+
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  border: 1px solid #ddd;
+  border-radius: 24px;
+  cursor: pointer;
+  background: white;
+  transition: box-shadow 0.2s;
+}
+
+.user-pill:hover {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+}
+
+.avatar {
+  font-size: 1.7rem;
+  color: var(--text-muted);
+}
+
+.user-dropdown {
+  display: none;
+  position: absolute;
+  top: 48px;
+  right: 0;
+  background: white;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid #eee;
+  width: 220px;
+  padding: 8px 0;
+  z-index: 200;
+}
+
+.user-dropdown.show {
+  display: block;
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 10px 18px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.dropdown-item:hover {
+  background-color: #f7f7f7;
+}
+
+.dropdown-item.bold {
+  font-weight: 600;
+}
+
+.dropdown-user-info {
+  padding: 10px 18px;
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 0.95rem;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #eee;
+  margin: 6px 0;
+}
+
+.text-danger {
+  color: #c90000;
+}
+
+/* Filters */
+.filters-container {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.filter-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding-bottom: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  transition: 0.2s;
+}
+
+.filter-tab i {
+  font-size: 1.3rem;
+}
+
+.filter-tab.active, .filter-tab:hover {
+  color: var(--text-dark);
+  border-bottom: 2px solid var(--text-dark);
+}
+
+/* Listings Grid */
+.container {
+  max-width: 1440px;
+  margin: 28px auto;
+  padding: 0 40px;
+}
+
+.listings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 30px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  position: relative;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.card-img-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background-color: #f0f0f0;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.heart-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  font-size: 1.4rem;
+  color: white;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  transition: transform 0.15s ease;
+}
+
+.heart-btn.liked {
+  color: var(--primary);
+}
+
+.card-content {
+  padding-top: 10px;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 600;
+}
+
+.card-title {
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 78%;
+}
+
+.card-location {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 2px;
+}
+
+.card-price {
+  font-size: 0.95rem;
+  margin-top: 6px;
+  color: var(--text-dark);
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-card {
+  flex: 1;
+  padding: 6px 0;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  background: white;
+  transition: 0.2s;
+}
+
+.btn-card:hover {
+  background-color: #f7f7f7;
+}
+
+.btn-delete {
+  color: #c90000;
+  border-color: #ffd4d4;
+}
+
+/* Modals */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal-card {
+  background: white;
+  width: 90%;
+  max-width: 520px;
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: var(--shadow);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.auth-card {
+  max-width: 400px;
+}
+
+.detail-card {
+  max-width: 760px;
+  position: relative;
+  padding: 30px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+
+.detail-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 2rem;
+  color: #666;
+}
+
+/* Detail Modal Inner Elements */
+.detail-img {
+  width: 100%;
+  height: 340px;
+  border-radius: 12px;
+  object-fit: cover;
+  margin-bottom: 18px;
+}
+
+.detail-title {
+  font-size: 1.6rem;
+  margin-bottom: 6px;
+}
+
+.detail-location {
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.detail-badges {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pill-badge {
+  background: #f4f4f4;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.detail-desc {
+  line-height: 1.5;
+  color: #484848;
+  margin-bottom: 20px;
+}
+
+/* Rating Sub-section */
+.rating-section {
+  border-top: 1px solid #eee;
+  padding-top: 18px;
+  margin-top: 18px;
+}
+
+.star-rating-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.star-rate-icon {
+  font-size: 1.5rem;
+  color: #ccc;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.star-rate-icon.hovered, .star-rate-icon.active {
+  color: #ff385c;
+}
+
+/* Booking Box inside Details */
+.checkout-box {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafafa;
+}
+
+/* Forms */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.form-group input, 
+.form-group select, 
+.form-group textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+}
