@@ -1,4 +1,4 @@
-const BASE_URL = "https://vestago.onrender.com/api/listings";
+const BASE_URL = "https://vestago.onrender.com";
 
 // Point this to your backend address
 //const BASE_URL = 'http://localhost:5000';
