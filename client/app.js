@@ -1,7 +1,7 @@
-/*const BASE_URL = "https://vestago.onrender.com/api/listings";*/
+const BASE_URL = "https://vestago.onrender.com/api/listings";
 
 // Point this to your backend address
-const BASE_URL = 'http://localhost:5000';
+//const BASE_URL = 'http://localhost:5000';
 const API_URL = `${BASE_URL}/api/listings`;
 const AUTH_URL = `${BASE_URL}/api/auth`;
 
