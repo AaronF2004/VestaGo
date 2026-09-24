@@ -3,31 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Airbnb | Vacation Rentals & Dining</title>
+  <title>Airbnb | Vacation Rentals & Experiences</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body>
 
   <!-- Top Navigation Bar -->
-  <header class="navbar">
-    <div class="logo" onclick="window.location.reload()">
+  <header class="navbar" role="banner">
+    <div class="logo" onclick="window.location.reload()" tabindex="0" role="button" aria-label="Airbnb Home">
       <i class="fa-brands fa-airbnb airbnb-icon"></i>
       <span>Airbnb</span>
-    </div>
-
-    <!-- Search Input -->
-    <div class="search-bar">
-      <input type="text" id="searchInput" placeholder="Search by city, villa, or restaurant..." />
-      <button id="searchBtn"><i class="fa-solid fa-magnifying-glass"></i></button>
     </div>
 
     <div class="nav-actions">
       <button class="btn-host" id="openCreateModalBtn">Airbnb your home</button>
       
-      <!-- User Pill with Dropdown -->
+      <!-- User Menu -->
       <div class="user-menu-wrapper">
-        <button class="user-pill" id="userMenuBtn">
+        <button class="user-pill" id="userMenuBtn" aria-haspopup="true" aria-expanded="false" aria-label="User navigation">
           <i class="fa-solid fa-bars"></i>
           <i class="fa-solid fa-circle-user avatar"></i>
         </button>
@@ -36,12 +30,11 @@
           <div id="loggedOutMenu">
             <button class="dropdown-item bold" onclick="openAuthModal('Sign Up')">Sign up</button>
             <button class="dropdown-item" onclick="openAuthModal('Log In')">Log in</button>
-            <div class="dropdown-divider"></div>
-            <button class="dropdown-item" onclick="openCreateModal()">Host an experience</button>
           </div>
           <div id="loggedInMenu" style="display: none;">
-            <div class="dropdown-user-info" id="userNameDisplay">Welcome, User</div>
+            <div class="dropdown-user-info" id="userNameDisplay">Welcome</div>
             <div class="dropdown-divider"></div>
+            <button class="dropdown-item" onclick="showMyBookingsTab()">My Bookings</button>
             <button class="dropdown-item" onclick="openCreateModal()">Add a Listing</button>
             <button class="dropdown-item text-danger" onclick="logoutUser()">Log out</button>
           </div>
@@ -50,28 +43,144 @@
     </div>
   </header>
 
-  <!-- Filter Category Tabs -->
-  <section class="filters-container">
-    <div class="filter-tab active" data-filter="all">
-      <i class="fa-solid fa-earth-americas"></i>
-      <span>All</span>
-    </div>
-    <div class="filter-tab" data-filter="hotel">
-      <i class="fa-solid fa-bed"></i>
-      <span>Hotels & Stays</span>
-    </div>
-    <div class="filter-tab" data-filter="restaurant">
-      <i class="fa-solid fa-utensils"></i>
-      <span>Dining & Bistros</span>
+  <!-- Hero Banner with Trip Search Bar -->
+  <section class="hero-banner">
+    <div class="hero-content">
+      <h1>Find places to stay on Airbnb</h1>
+      <p>Discover entire homes and private rooms perfect for any trip.</p>
+      
+      <form class="hero-search-box" id="heroSearchForm">
+        <div class="search-field">
+          <label for="searchWhere">Where</label>
+          <input type="text" id="searchWhere" placeholder="Search destinations" />
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-field">
+          <label for="searchCheckin">Check in</label>
+          <input type="date" id="searchCheckin" />
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-field">
+          <label for="searchCheckout">Check out</label>
+          <input type="date" id="searchCheckout" />
+        </div>
+        <div class="search-divider"></div>
+        <div class="search-field">
+          <label for="searchGuests">Who</label>
+          <input type="text" id="searchGuests" placeholder="Add guests" />
+        </div>
+        <button type="submit" class="hero-search-submit" aria-label="Search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
+      </form>
     </div>
   </section>
 
-  <!-- Listings Grid -->
+  <!-- Filters & Sorting Bar -->
+  <section class="controls-bar">
+    <div class="filters-container">
+      <button class="filter-tab active" data-filter="all">
+        <i class="fa-solid fa-earth-americas"></i>
+        <span>All</span>
+      </button>
+      <button class="filter-tab" data-filter="hotel">
+        <i class="fa-solid fa-bed"></i>
+        <span>Hotels & Stays</span>
+      </button>
+      <button class="filter-tab" data-filter="restaurant">
+        <i class="fa-solid fa-utensils"></i>
+        <span>Dining</span>
+      </button>
+      <button class="filter-tab" data-filter="bookings" id="bookingsTab">
+        <i class="fa-solid fa-receipt"></i>
+        <span>My Bookings</span>
+      </button>
+    </div>
+
+    <div class="utility-controls" id="utilityControls">
+      <div class="sort-control">
+        <label for="sortSelect">Sort by:</label>
+        <select id="sortSelect" onchange="fetchListings()">
+          <option value="newest">Newest</option>
+          <option value="price_asc">Price: Low to High</option>
+          <option value="price_desc">Price: High to Low</option>
+          <option value="rating_desc">Top Rated</option>
+        </select>
+      </div>
+      <button class="btn-filter-trigger" id="filterModalBtn">
+        <i class="fa-solid fa-sliders"></i> Filters
+      </button>
+    </div>
+  </section>
+
+  <!-- Listings Grid / Bookings Grid -->
   <main class="container">
-    <div id="listingsGrid" class="listings-grid"></div>
+    <div id="listingsGrid" class="listings-grid" aria-live="polite"></div>
   </main>
 
-  <!-- DETAIL MODAL (Opens on Card Click) -->
+  <!-- BOOKING RECEIPT MODAL -->
+  <div class="modal-overlay" id="receiptModal">
+    <div class="modal-card receipt-card">
+      <div class="receipt-header">
+        <div class="receipt-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <h3>Booking Confirmed!</h3>
+        <p class="receipt-sub">Here is your official reservation receipt</p>
+      </div>
+      <div id="receiptContent" class="receipt-body"></div>
+      <div class="receipt-actions">
+        <button class="submit-btn" onclick="closeReceiptModal()">Close Receipt</button>
+        <button class="btn-cancel-receipt" id="btnCancelBookingModal">Cancel Reservation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM CANCELLATION CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="confirmCancelModal">
+    <div class="modal-card confirm-dialog-card">
+      <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <h3>Cancel Reservation?</h3>
+      <p class="confirm-text">Are you sure you want to cancel this booking? A <strong>100% full refund</strong> will automatically be credited to your account.</p>
+      <div class="confirm-actions">
+        <button class="btn-cancel-action" id="btnConfirmCancelBooking">Yes, Cancel Booking</button>
+        <button class="btn-keep-action" onclick="closeConfirmModal()">Keep Reservation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="appToast" class="app-toast">
+    <i class="fa-solid fa-circle-check"></i>
+    <span id="toastMsg">Operation successful</span>
+  </div>
+
+  <!-- FILTER MODAL -->
+  <div class="modal-overlay" id="filterModal">
+    <div class="modal-card auth-card">
+      <div class="modal-header">
+        <h3>Filter by Details</h3>
+        <button class="close-btn" id="closeFilterModalBtn">&times;</button>
+      </div>
+      <div class="form-group">
+        <label for="filterMinPrice">Minimum Price (₹)</label>
+        <input type="number" id="filterMinPrice" placeholder="0" min="0" />
+      </div>
+      <div class="form-group">
+        <label for="filterMaxPrice">Maximum Price (₹)</label>
+        <input type="number" id="filterMaxPrice" placeholder="50000" min="0" />
+      </div>
+      <div class="form-group">
+        <label for="filterMinRating">Minimum Rating</label>
+        <select id="filterMinRating">
+          <option value="">Any Rating</option>
+          <option value="4.5">★ 4.5 & above</option>
+          <option value="4.8">★ 4.8 & above</option>
+        </select>
+      </div>
+      <button class="submit-btn" onclick="applyFilters()">Apply Filters</button>
+    </div>
+  </div>
+
+  <!-- DETAIL MODAL -->
   <div class="modal-overlay" id="detailModal">
     <div class="modal-card detail-card">
       <button class="close-btn detail-close" id="closeDetailModalBtn">&times;</button>
@@ -86,43 +195,47 @@
         <h3 id="modalTitle">Host a New Place</h3>
         <button class="close-btn" id="closeModalBtn">&times;</button>
       </div>
-      <form id="listingForm">
+      <form id="listingForm" enctype="multipart/form-data">
         <input type="hidden" id="listingId" />
         <div class="form-group">
-          <label>Title</label>
+          <label for="titleInput">Title</label>
           <input type="text" id="titleInput" placeholder="e.g. Modern Glass Villa" required />
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Category Type</label>
+            <label for="typeInput">Category Type</label>
             <select id="typeInput" required>
               <option value="hotel">Hotel / Villa</option>
               <option value="restaurant">Restaurant / Bistro</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Price (₹)</label>
-            <input type="number" id="priceInput" placeholder="4500" required />
+            <label for="priceInput">Price per night/meal (₹)</label>
+            <input type="number" id="priceInput" placeholder="4500" min="1" required />
           </div>
         </div>
         <div class="form-group">
-          <label>Location</label>
-          <input type="text" id="locationInput" placeholder="e.g. Goa, India" required />
+          <label for="locationInput">Location</label>
+          <input type="text" id="locationInput" placeholder="e.g. South Goa, India" required />
         </div>
         <div class="form-group">
-          <label>Image URL</label>
-          <input type="url" id="imageInput" placeholder="https://images.unsplash.com/..." required />
+          <label for="photosInput">Upload Photos (Multiple allowed)</label>
+          <input type="file" id="photosInput" name="photos" accept="image/*" multiple />
         </div>
         <div class="form-group">
-          <label>Description</label>
-          <textarea id="descInput" rows="3" placeholder="Tell guests about your place..." required></textarea>
+          <label for="amenitiesInput">Amenities (comma separated)</label>
+          <input type="text" id="amenitiesInput" placeholder="Wifi, Pool, Kitchen, Ocean view" />
+        </div>
+        <div class="form-group">
+          <label for="descInput">Description</label>
+          <textarea id="descInput" rows="3" placeholder="Tell guests about your space..." required></textarea>
         </div>
         <button type="submit" class="submit-btn" id="submitFormBtn">Save Listing</button>
       </form>
     </div>
   </div>
 
-  <!-- AUTH MODAL (Sign Up / Log In) -->
+  <!-- AUTH MODAL -->
   <div class="modal-overlay" id="authModal">
     <div class="modal-card auth-card">
       <div class="modal-header">
@@ -130,22 +243,53 @@
         <button class="close-btn" id="closeAuthModalBtn">&times;</button>
       </div>
       <form id="authForm">
-        <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="authName" placeholder="John Doe" required />
+        <div class="form-group" id="nameFieldGroup">
+          <label for="authName">Full Name</label>
+          <input type="text" id="authName" placeholder="John Doe" />
         </div>
         <div class="form-group">
-          <label>Email Address</label>
+          <label for="authEmail">Email Address</label>
           <input type="email" id="authEmail" placeholder="user@example.com" required />
         </div>
         <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="authPassword" placeholder="••••••••" required />
+          <label for="authPassword">Password</label>
+          <input type="password" id="authPassword" placeholder="At least 6 characters" minlength="6" required />
         </div>
+        <p id="authErrorMsg" class="error-msg" style="display:none;"></p>
         <button type="submit" class="submit-btn" id="authSubmitBtn">Continue</button>
       </form>
     </div>
   </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-col">
+        <h4>Support</h4>
+        <a href="#">Help Centre</a>
+        <a href="#">AirCover</a>
+        <a href="#">Anti-discrimination</a>
+        <a href="#">Disability support</a>
+      </div>
+      <div class="footer-col">
+        <h4>Hosting</h4>
+        <a href="#">Airbnb your home</a>
+        <a href="#">AirCover for Hosts</a>
+        <a href="#">Hosting resources</a>
+        <a href="#">Community forum</a>
+      </div>
+      <div class="footer-col">
+        <h4>Airbnb</h4>
+        <a href="#">Newsroom</a>
+        <a href="#">New features</a>
+        <a href="#">Careers</a>
+        <a href="#">Investors</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 Airbnb, Inc. · <a href="#">Privacy</a> · <a href="#">Terms</a> · <a href="#">Sitemap</a> · <a href="#">Company details</a></p>
+    </div>
+  </footer>
 
   <script src="app.js"></script>
 </body>
