@@ -8,11 +8,12 @@
   --brand-gradient: linear-gradient(135deg, #ff385c 0%, #d81b60 50%, #8a2387 100%);
   --brand-glow: rgba(255, 56, 92, 0.24);
 
-  /* Warm Alabaster Luxury Palette */
-  --bg-page: #faf8f5;                  /* Soft Warm Alabaster (Full Page canvas) */
-  --bg-surface: #ffffff;               /* Pure White (Cards, Dropdowns & Modals) */
-  --bg-subtle: #f4efe8;                /* Tonal Warm Neutral (Pills, inputs, filters) */
+  /* Warm Alabaster Luxury Palette (Default Light) */
+  --bg-page: #faf8f5;                  /* Soft Warm Alabaster */
+  --bg-surface: #ffffff;               /* Pure White */
+  --bg-subtle: #f4efe8;                /* Tonal Warm Neutral */
   --bg-nav: rgba(250, 248, 245, 0.85); /* Acrylic Frosted Blur */
+  --bg-footer: #f3eee6;
 
   /* Text Contrast Hierarchy */
   --text-dark: #1c1917;                /* Deep Stone Espresso */
@@ -42,6 +43,37 @@
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --transition-fast: 0.18s cubic-bezier(0.2, 0, 0, 1);
   --transition-smooth: 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  --skeleton-base: #f4efe8;
+  --skeleton-highlight: #faf8f5;
+}
+
+/* ==========================================
+   DARK THEME PALETTE
+   ========================================== */
+body.dark-mode {
+  --bg-page: #121214;
+  --bg-surface: #1e1e24;
+  --bg-subtle: #27272f;
+  --bg-nav: rgba(18, 18, 20, 0.85);
+  --bg-footer: #18181c;
+
+  --text-dark: #f5f5f7;
+  --text-main: #d1d1d6;
+  --text-muted: #9e9ea7;
+  --text-subtle: #6e6e77;
+
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --border-focus: rgba(255, 56, 92, 0.6);
+
+  --shadow-subtle: 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 20px 36px rgba(0, 0, 0, 0.7);
+  --shadow-modal: 0 26px 65px rgba(0, 0, 0, 0.85);
+
+  --skeleton-base: #23232b;
+  --skeleton-highlight: #2f2f3a;
 }
 
 * {
@@ -60,6 +92,7 @@ body {
   flex-direction: column;
   min-height: 100vh;
   letter-spacing: -0.01em;
+  transition: background-color var(--transition-smooth), color var(--transition-smooth);
 }
 
 /* Custom Luxury Scrollbars */
@@ -78,7 +111,7 @@ body {
   background: rgba(120, 113, 108, 0.38);
 }
 
-/* NAVBAR (Frosted Glassmorphism) */
+/* NAVBAR */
 .navbar {
   display: flex;
   justify-content: space-between;
@@ -91,7 +124,7 @@ body {
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   z-index: 1000;
-  transition: box-shadow var(--transition-smooth);
+  transition: box-shadow var(--transition-smooth), background-color var(--transition-smooth), border-color var(--transition-smooth);
 }
 
 .logo {
@@ -132,6 +165,37 @@ body {
   gap: 14px;
 }
 
+/* DARK / LIGHT THEME TOGGLE BUTTON */
+.theme-toggle-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  color: var(--text-dark);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.05rem;
+  box-shadow: var(--shadow-subtle);
+  transition: all var(--transition-fast);
+}
+
+.theme-toggle-btn:hover {
+  transform: scale(1.08) rotate(15deg);
+  border-color: var(--border-hover);
+  background-color: var(--bg-subtle);
+}
+
+.theme-toggle-btn i {
+  transition: transform var(--transition-smooth), color var(--transition-fast);
+}
+
+body.dark-mode .theme-toggle-btn i {
+  color: #fbbf24;
+}
+
 .btn-host {
   background: transparent;
   border: 1px solid transparent;
@@ -163,6 +227,7 @@ body {
   border-radius: var(--radius-pill);
   cursor: pointer;
   background: var(--bg-surface);
+  color: var(--text-dark);
   box-shadow: var(--shadow-subtle);
   transition: all var(--transition-smooth);
 }
@@ -253,7 +318,7 @@ body {
 .hero-banner {
   background: radial-gradient(
     ellipse 85% 65% at 50% -10%,
-    rgba(255, 56, 92, 0.09) 0%,
+    rgba(255, 56, 92, 0.12) 0%,
     rgba(255, 178, 107, 0.05) 45%,
     transparent 100%
   );
@@ -277,14 +342,14 @@ body {
   font-weight: 400;
 }
 
-/* Premium Floating Search Capsule */
+/* Floating Search Capsule */
 .hero-search-box {
   display: inline-flex;
   align-items: center;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-pill);
-  box-shadow: 0 10px 30px -5px rgba(41, 37, 36, 0.08), 0 2px 6px rgba(41, 37, 36, 0.04);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   padding: 8px 12px 8px 24px;
   max-width: 890px;
   width: 100%;
@@ -294,7 +359,7 @@ body {
 .hero-search-box:focus-within,
 .hero-search-box:hover {
   border-color: var(--border-hover);
-  box-shadow: 0 14px 40px -6px rgba(41, 37, 36, 0.12), 0 3px 8px rgba(41, 37, 36, 0.06);
+  box-shadow: 0 14px 40px -6px rgba(0, 0, 0, 0.16);
   transform: translateY(-2px);
 }
 
@@ -306,7 +371,6 @@ body {
   padding: 6px 14px;
 }
 
-/* Allows full typewriter placeholder phrase to breathe */
 .search-field:first-child {
   flex: 1.45;
 }
@@ -328,6 +392,11 @@ body {
   width: 100%;
   background: transparent;
   color: var(--text-dark);
+}
+
+/* Native date input icon invert for dark mode */
+body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
 }
 
 .search-field input::placeholder {
@@ -371,6 +440,7 @@ body {
   background: var(--bg-page);
   flex-wrap: wrap;
   gap: 16px;
+  transition: background-color var(--transition-smooth);
 }
 
 .filters-container {
@@ -441,6 +511,7 @@ body {
   gap: 8px;
   font-size: 0.88rem;
   font-weight: 600;
+  color: var(--text-dark);
 }
 
 .sort-control select {
@@ -450,6 +521,7 @@ body {
   font-size: 0.88rem;
   font-weight: 500;
   background: var(--bg-surface);
+  color: var(--text-dark);
   outline: none;
   cursor: pointer;
   transition: border-color var(--transition-fast);
@@ -464,6 +536,7 @@ body {
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-light);
   background: var(--bg-surface);
+  color: var(--text-dark);
   cursor: pointer;
   font-weight: 600;
   font-size: 0.88rem;
@@ -530,7 +603,6 @@ body {
   transform: scale(1.06);
 }
 
-/* Soft cinematic vignette on hover */
 .card-img-wrapper::after {
   content: "";
   position: absolute;
@@ -550,21 +622,27 @@ body {
   top: 14px;
   left: 14px;
   background: rgba(255, 255, 255, 0.94);
+  color: #1c1917;
   backdrop-filter: blur(8px);
   padding: 5px 12px;
   font-size: 0.72rem;
   font-weight: 700;
   border-radius: var(--radius-pill);
   z-index: 10;
-  box-shadow: 0 4px 10px rgba(41, 37, 36, 0.12);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
   letter-spacing: 0.02em;
+}
+
+body.dark-mode .badge-tag {
+  background: rgba(30, 30, 36, 0.94);
+  color: #f5f5f7;
 }
 
 .heart-btn {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(28, 25, 23, 0.28);
+  background: rgba(28, 25, 23, 0.4);
   backdrop-filter: blur(6px);
   border: none;
   width: 36px;
@@ -586,11 +664,15 @@ body {
 
 .heart-btn:hover {
   transform: scale(1.12);
-  background: rgba(28, 25, 23, 0.45);
+  background: rgba(28, 25, 23, 0.6);
 }
 
 .heart-btn.liked {
   background: rgba(255, 255, 255, 0.94);
+}
+
+body.dark-mode .heart-btn.liked {
+  background: rgba(30, 30, 36, 0.94);
 }
 
 .heart-btn.liked i {
@@ -649,6 +731,7 @@ body {
   cursor: pointer;
   border: 1px solid var(--border-light);
   background: var(--bg-surface);
+  color: var(--text-dark);
   transition: all var(--transition-fast);
 }
 
@@ -658,12 +741,12 @@ body {
 }
 
 .btn-delete {
-  color: #d90429;
-  border-color: #ffd4d4;
+  color: #ff4d6d;
+  border-color: rgba(255, 77, 109, 0.3);
 }
 
 .btn-delete:hover {
-  background: #fff2f2;
+  background: rgba(255, 77, 109, 0.12);
 }
 
 /* Star Ratings */
@@ -681,7 +764,7 @@ body {
 
 .star-rate-icon {
   font-size: 1.6rem;
-  color: #d6d3d1;
+  color: var(--text-subtle);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -702,7 +785,7 @@ body {
 .skeleton-img {
   width: 100%;
   aspect-ratio: 20 / 19;
-  background: linear-gradient(90deg, #f4efe8 25%, #faf8f5 50%, #f4efe8 75%);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-highlight) 50%, var(--skeleton-base) 75%);
   background-size: 200% 100%;
   border-radius: var(--radius-md);
   animation: shimmer 1.6s infinite ease-in-out;
@@ -710,7 +793,7 @@ body {
 
 .skeleton-text {
   height: 14px;
-  background: linear-gradient(90deg, #f4efe8 25%, #faf8f5 50%, #f4efe8 75%);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-highlight) 50%, var(--skeleton-base) 75%);
   background-size: 200% 100%;
   border-radius: var(--radius-xs);
   animation: shimmer 1.6s infinite ease-in-out;
@@ -738,7 +821,7 @@ body {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(28, 25, 23, 0.48);
+  background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 10000;
@@ -763,6 +846,7 @@ body {
 
 .modal-card {
   background: var(--bg-surface);
+  color: var(--text-main);
   width: 100%;
   max-width: 560px;
   border-radius: var(--radius-lg);
@@ -901,6 +985,8 @@ body {
   padding: 12px 16px;
   box-shadow: var(--shadow-hover);
   border: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  color: var(--text-dark);
 }
 
 /* REVIEWS */
@@ -927,6 +1013,7 @@ body {
   font-size: 0.92rem;
   margin-bottom: 12px;
   background: var(--bg-surface);
+  color: var(--text-dark);
   transition: border-color var(--transition-fast);
 }
 
@@ -963,6 +1050,7 @@ body {
 .review-author {
   font-weight: 700;
   font-size: 0.95rem;
+  color: var(--text-dark);
 }
 
 .review-date {
@@ -975,8 +1063,8 @@ body {
 
 .btn-delete-review {
   background: transparent;
-  border: 1px solid #ffd4d4;
-  color: #d90429;
+  border: 1px solid rgba(255, 77, 109, 0.4);
+  color: #ff4d6d;
   cursor: pointer;
   font-size: 0.95rem;
   padding: 5px 8px;
@@ -985,7 +1073,7 @@ body {
 }
 
 .btn-delete-review:hover {
-  background: #ffe5e5;
+  background: rgba(255, 77, 109, 0.15);
   transform: scale(1.08);
 }
 
@@ -1030,6 +1118,7 @@ body {
   font-size: 0.95rem;
   font-weight: 700;
   margin-bottom: 12px;
+  color: var(--text-dark);
 }
 
 .trip-row {
@@ -1043,7 +1132,7 @@ body {
   color: var(--text-muted);
 }
 
-/* Payment Method Selection Tabs */
+/* Payment Method Tabs */
 .payment-tabs-grid {
   display: flex;
   gap: 8px;
@@ -1055,6 +1144,7 @@ body {
   padding: 10px 8px;
   border: 1px solid var(--border-light);
   background: var(--bg-surface);
+  color: var(--text-dark);
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   font-weight: 600;
@@ -1071,7 +1161,7 @@ body {
 }
 
 .pay-method-tab.active {
-  background: rgba(255, 56, 92, 0.08);
+  background: rgba(255, 56, 92, 0.12);
   border-color: var(--primary);
   color: var(--primary);
 }
@@ -1117,6 +1207,7 @@ body {
   border-radius: var(--radius-xs);
   font-size: 0.92rem;
   background: var(--bg-surface);
+  color: var(--text-dark);
   outline: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -1154,6 +1245,7 @@ body {
 .upi-pill {
   background: var(--bg-subtle);
   border: 1px solid var(--border-light);
+  color: var(--text-dark);
   border-radius: var(--radius-pill);
   padding: 4px 10px;
   font-size: 0.76rem;
@@ -1261,6 +1353,7 @@ body {
 .receipt-header h3 {
   font-size: 1.45rem;
   margin-bottom: 4px;
+  color: var(--text-dark);
 }
 
 .receipt-sub {
@@ -1272,7 +1365,7 @@ body {
 .receipt-body {
   text-align: left;
   background: var(--bg-page);
-  border: 1px dashed rgba(120, 113, 108, 0.35);
+  border: 1px dashed var(--border-hover);
   border-radius: var(--radius-md);
   padding: 18px 22px;
   margin-bottom: 20px;
@@ -1301,13 +1394,12 @@ body {
   gap: 10px;
 }
 
-/* Download Voucher Button */
 .btn-download-receipt {
   width: 100%;
   padding: 12px;
-  background: #f0fdf4;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background: rgba(5, 150, 105, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
   border-radius: var(--radius-sm);
   font-size: 0.95rem;
   font-weight: 700;
@@ -1320,8 +1412,7 @@ body {
 }
 
 .btn-download-receipt:hover {
-  background: #dcfce7;
-  border-color: #6ee7b7;
+  background: rgba(5, 150, 105, 0.22);
   transform: translateY(-1px);
 }
 
@@ -1329,8 +1420,8 @@ body {
   width: 100%;
   padding: 12px;
   background: var(--bg-surface);
-  color: #d90429;
-  border: 1px solid #ffd4d4;
+  color: #ff4d6d;
+  border: 1px solid rgba(255, 77, 109, 0.3);
   border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;
@@ -1338,7 +1429,7 @@ body {
 }
 
 .btn-cancel-receipt:hover {
-  background: #fff2f2;
+  background: rgba(255, 77, 109, 0.12);
 }
 
 /* CONFIRM DIALOG MODAL */
@@ -1350,13 +1441,14 @@ body {
 
 .confirm-icon {
   font-size: 2.8rem;
-  color: #d90429;
+  color: #ff4d6d;
   margin-bottom: 14px;
 }
 
 .confirm-dialog-card h3 {
   font-size: 1.4rem;
   margin-bottom: 8px;
+  color: var(--text-dark);
 }
 
 .confirm-text {
@@ -1415,12 +1507,16 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 12px 36px rgba(28, 25, 23, 0.28);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
   font-size: 0.92rem;
   font-weight: 600;
   z-index: 20000;
   opacity: 0;
   transition: transform 0.35s var(--ease-spring), opacity 0.3s ease;
+}
+
+body.dark-mode .app-toast {
+  background: rgba(45, 45, 55, 0.94);
 }
 
 .app-toast.show {
@@ -1458,8 +1554,8 @@ body {
 }
 
 .booking-badge {
-  background: #ecfdf5;
-  color: #047857;
+  background: rgba(5, 150, 105, 0.15);
+  color: #10b981;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   font-size: 0.75rem;
@@ -1488,6 +1584,7 @@ body {
   border-radius: var(--radius-sm);
   font-size: 0.92rem;
   background: var(--bg-surface);
+  color: var(--text-dark);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -1528,7 +1625,7 @@ body {
 }
 
 .error-msg {
-  color: #d90429;
+  color: #ff4d6d;
   font-size: 0.85rem;
   margin-bottom: 10px;
 }
@@ -1556,10 +1653,11 @@ body {
 
 /* FOOTER */
 .footer {
-  background-color: #f3eee6;
+  background-color: var(--bg-footer);
   border-top: 1px solid var(--border-light);
   padding: 56px 56px 32px;
   margin-top: 80px;
+  transition: background-color var(--transition-smooth);
 }
 
 .footer-container {

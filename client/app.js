@@ -14,6 +14,44 @@ const AUTH_URL = `${BASE_URL}/api/auth`;
 // Split to ensure GitHub push scanning doesn't block the commit
 const MAPBOX_TOKEN = 'pk.' + 'eyJ1IjoiYWFyb24wODExMjAwNCIsImEiOiJjbXVnbjJ3YWwwOWduMndxeWw0ZTJkNm1hIn0.NagTfSeYYGxGDulv1jf1Rw';
 
+// ==========================================
+// DARK / LIGHT MODE ENGINE
+// ==========================================
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const themeToggleIcon = document.getElementById('themeToggleIcon');
+
+function applyTheme(theme) {
+  if (theme === 'dark') {
+    document.body.classList.add('dark-mode');
+    if (themeToggleIcon) {
+      themeToggleIcon.classList.remove('fa-moon');
+      themeToggleIcon.classList.add('fa-sun');
+    }
+  } else {
+    document.body.classList.remove('dark-mode');
+    if (themeToggleIcon) {
+      themeToggleIcon.classList.remove('fa-sun');
+      themeToggleIcon.classList.add('fa-moon');
+    }
+  }
+}
+
+// Check saved theme preference or system preference
+const savedTheme = localStorage.getItem('vestago_theme') || 
+  (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+applyTheme(savedTheme);
+
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener('click', () => {
+    const isDark = document.body.classList.contains('dark-mode');
+    const newTheme = isDark ? 'light' : 'dark';
+    applyTheme(newTheme);
+    localStorage.setItem('vestago_theme', newTheme);
+    showToast(`${newTheme === 'dark' ? 'Dark' : 'Light'} mode enabled`);
+  });
+}
+
 // Helper: Get user-specific storage keys
 function getWishlistStorageKey() {
   if (currentUser && (currentUser.id || currentUser._id)) {
@@ -122,9 +160,7 @@ const payUpiId = document.getElementById('payUpiId');
 const payBankSelect = document.getElementById('payBankSelect');
 const payValidationError = document.getElementById('payValidationError');
 
-// ==========================================
-// DYNAMIC CHECK-IN / CHECK-OUT DATE SYSTEM
-// ==========================================
+// Dynamic Check-In / Check-Out
 function initDatePickers() {
   if (!searchCheckin || !searchCheckout) return;
 
@@ -168,7 +204,7 @@ function initDatePickers() {
 
 initDatePickers();
 
-// Initialize Auth
+// Sync Auth
 syncAuthUI();
 
 function syncAuthUI() {
@@ -269,7 +305,7 @@ authForm.addEventListener('submit', async (e) => {
     authForm.reset();
 
     if (isSignUp) {
-      showToast(`Welcome to VestaGo, ${currentUser.name}!`);
+      showToast(`Welcome to VestaGo, ${currentUser.name}! Confirmation email sent.`);
     } else {
       showToast(`Welcome back, ${currentUser.name}!`);
     }
@@ -297,7 +333,6 @@ window.logoutUser = function () {
   fetchListings();
 };
 
-// Skeletons
 function renderSkeletons() {
   listingsGrid.innerHTML = Array(8).fill(0).map(() => `
     <div class="skeleton-card">
@@ -308,7 +343,6 @@ function renderSkeletons() {
   `).join('');
 }
 
-// Fetch Listings
 async function fetchListings() {
   if (currentFilter === 'bookings') {
     renderBookings();
@@ -365,7 +399,6 @@ function resolveImage(img) {
   return `${BASE_URL}${img}`;
 }
 
-// Render Listings Grid
 function renderListings(listings) {
   if (!listings || listings.length === 0) {
     listingsGrid.innerHTML = `
@@ -422,7 +455,6 @@ function renderListings(listings) {
   }).join('');
 }
 
-// Mapbox Geocoding and Map Initializer
 async function initDetailMap(locationQuery, title) {
   const mapContainer = document.getElementById('detailMap');
   if (!mapContainer || !window.mapboxgl) return;
@@ -448,9 +480,11 @@ async function initDetailMap(locationQuery, title) {
     console.warn('Geocoding fallback used:', err);
   }
 
+  const isDark = document.body.classList.contains('dark-mode');
+
   activeMapboxInstance = new mapboxgl.Map({
     container: 'detailMap',
-    style: 'mapbox://styles/mapbox/streets-v12',
+    style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12',
     center: coordinates,
     zoom: 12
   });
@@ -458,7 +492,7 @@ async function initDetailMap(locationQuery, title) {
   activeMapboxInstance.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
   const popup = new mapboxgl.Popup({ offset: 25 })
-    .setHTML(`<strong>${title}</strong><br/><span style="color:#666;">${locationQuery}</span>`);
+    .setHTML(`<strong>${title}</strong><br/><span style="color:#888;">${locationQuery}</span>`);
 
   new mapboxgl.Marker({ color: '#ff385c' })
     .setLngLat(coordinates)
@@ -472,7 +506,6 @@ async function initDetailMap(locationQuery, title) {
   }, 300);
 }
 
-// Open Property Detail View
 window.openDetailModal = async function (id) {
   try {
     const res = await fetch(`${API_URL}/${id}`);
@@ -535,11 +568,9 @@ window.openDetailModal = async function (id) {
         ${(item.amenities || ['Wifi', 'Air Conditioning', 'Kitchen', 'Free Parking']).map(a => `<span class="pill-badge"><i class="fa-solid fa-check"></i> ${a}</span>`).join('')}
       </div>
 
-      <!-- Live Mapbox Map Container -->
       <h4 style="margin-top: 24px;"><i class="fa-solid fa-map-location-dot"></i> Where you'll be</h4>
       <div id="detailMap"></div>
 
-      <!-- Guest Reviews -->
       <div class="review-section">
         <h3>Guest Reviews & Ratings</h3>
         
@@ -560,7 +591,6 @@ window.openDetailModal = async function (id) {
         </div>
       </div>
 
-      <!-- Checkout Box -->
       <div class="checkout-box">
         <div>
           <h3>₹${Number(item.price).toLocaleString()} <span style="font-size:0.85rem; font-weight:normal;">${item.type === 'hotel' ? '/ night' : '/ guest'}</span></h3>
@@ -624,7 +654,6 @@ window.handleReviewSubmit = async function (e, id) {
   }
 };
 
-// Prompt Delete Review Modal
 window.promptDeleteReview = function (e, listingId, reviewIndex) {
   if (e) {
     e.preventDefault();
@@ -646,7 +675,6 @@ window.closeDeleteReviewModal = function () {
   deleteReviewModal.classList.remove('show');
 };
 
-// Confirm Delete Review Handler
 btnConfirmDeleteReview.onclick = async function () {
   if (!pendingDeleteReview) return;
   const { listingId, reviewIndex, reviewId, comment, userName } = pendingDeleteReview;
@@ -667,8 +695,6 @@ btnConfirmDeleteReview.onclick = async function () {
     });
 
     if (res.ok) {
-      const data = await res.json();
-      
       const targetElement = document.getElementById(`review-dom-${reviewIndex}`);
       if (targetElement) {
         targetElement.remove();
@@ -687,7 +713,6 @@ btnConfirmDeleteReview.onclick = async function () {
   }
 };
 
-// Delete Listing Modal Handlers
 window.promptDeleteListing = function (id) {
   pendingDeleteListingId = id;
   deleteListingModal.classList.add('show');
@@ -722,9 +747,6 @@ btnConfirmDeleteListing.onclick = async function () {
   }
 };
 
-// ==========================================
-// PAYMENT METHOD SWITCHER & INPUT FORMATTERS
-// ==========================================
 window.switchPaymentMethod = function (method) {
   selectedPaymentMethod = method;
 
@@ -778,7 +800,6 @@ if (payCardCvc) {
   });
 }
 
-// Open Checkout Gateway
 window.openCheckoutGateway = function (listingId, title, type, price, location, image) {
   if (!currentUser) {
     showToast('Please log in to complete your reservation');
@@ -846,7 +867,6 @@ window.closeCheckoutModal = function () {
   checkoutModal.classList.remove('show');
 };
 
-// Validate Payment Form & Execute
 window.executeMockPayment = function () {
   if (payValidationError) payValidationError.style.display = 'none';
 
@@ -927,8 +947,15 @@ window.executeMockPayment = function () {
     userBookings.unshift(newBooking);
     localStorage.setItem('userBookings', JSON.stringify(userBookings));
 
+    // Send confirmation voucher to guest's email
+    fetch(`${API_URL}/bookings/confirm-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newBooking)
+    }).catch(err => console.error('Booking confirmation email error:', err));
+
     showReceipt(newBooking);
-    showToast('Payment successful! Booking confirmed.');
+    showToast('Payment successful! Booking confirmed & voucher emailed.');
   }, 1200);
 };
 
@@ -938,7 +965,6 @@ function showPaymentError(msg) {
   payValidationError.style.display = 'block';
 }
 
-// Verified Receipt Modal Display
 function showReceipt(booking) {
   activeReceiptBooking = booking;
 
@@ -969,7 +995,7 @@ function showReceipt(booking) {
     </div>
     <div class="receipt-row">
       <span>Paid via:</span>
-      <strong style="color: #047857;"><i class="fa-solid fa-shield-halved"></i> ${booking.paymentMethodUsed || 'VestaPay Sandbox'}</strong>
+      <strong style="color: #10b981;"><i class="fa-solid fa-shield-halved"></i> ${booking.paymentMethodUsed || 'VestaPay Sandbox'}</strong>
     </div>
     <div class="receipt-divider"></div>
     <div class="receipt-row">
@@ -987,7 +1013,7 @@ function showReceipt(booking) {
     <div class="receipt-divider"></div>
     <div class="receipt-row" style="font-size: 1.05rem;">
       <strong>Total Paid (via VestaPay):</strong>
-      <strong style="color: var(--primary);">₹${Number(booking.totalAmount).toLocaleString()}</strong>
+      <strong style="color: #ff385c;">₹${Number(booking.totalAmount).toLocaleString()}</strong>
     </div>
   `;
 
@@ -999,9 +1025,6 @@ function showReceipt(booking) {
   receiptModal.classList.add('show');
 }
 
-// ==========================================
-// DOWNLOAD RECEIPT (PDF / PRINT ENGINE)
-// ==========================================
 function downloadReceiptPdf(booking) {
   if (!booking) return;
 
@@ -1209,24 +1232,47 @@ window.closeConfirmModal = function () {
   confirmCancelModal.classList.remove('show');
 };
 
-btnConfirmCancelBooking.onclick = function () {
+btnConfirmCancelBooking.onclick = async function () {
   if (!pendingCancelBookingId) return;
 
+  const targetBooking = userBookings.find(b => b.id === pendingCancelBookingId);
+
+  // Remove booking from state and storage
   userBookings = userBookings.filter(b => b.id !== pendingCancelBookingId);
   localStorage.setItem('userBookings', JSON.stringify(userBookings));
 
   confirmCancelModal.classList.remove('show');
   receiptModal.classList.remove('show');
+
+  // Trigger cancellation email to guest
+  if (targetBooking && targetBooking.userEmail) {
+    try {
+      const res = await fetch(`${API_URL}/bookings/cancel-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetBooking)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Cancellation email server error:', errorData);
+      } else {
+        console.log('Cancellation email dispatched successfully');
+      }
+    } catch (err) {
+      console.error('Network error sending cancellation email:', err);
+    }
+  }
+
   pendingCancelBookingId = null;
 
-  showToast('Booking cancelled. 100% refund credited.');
+  showToast('Booking cancelled. Confirmation email sent & 100% refund credited.');
 
   if (currentFilter === 'bookings') {
     renderBookings();
   }
 };
 
-// User Dashboard Tabs
 window.showDashboardTab = function (tabName) {
   userDropdown.classList.remove('show');
   currentFilter = tabName;
@@ -1273,10 +1319,10 @@ function renderBookings() {
         <img src="${b.image}" alt="${b.title}" class="card-img" />
       </div>
       <div>
-        <h3 style="font-size: 1.05rem; margin-bottom: 4px;">${b.title}</h3>
+        <h3 style="font-size: 1.05rem; margin-bottom: 4px; color: var(--text-dark);">${b.title}</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-location-dot"></i> ${b.location}</p>
-        <p style="font-size:0.85rem; color:#555; margin-top:4px;">${b.dates || 'Confirmed'}</p>
-        <p style="margin-top: 8px; font-size: 0.95rem;">
+        <p style="font-size:0.85rem; color: var(--text-muted); margin-top:4px;">${b.dates || 'Confirmed'}</p>
+        <p style="margin-top: 8px; font-size: 0.95rem; color: var(--text-dark);">
           <strong>Total: ₹${Number(b.totalAmount).toLocaleString()}</strong>
         </p>
       </div>
@@ -1383,7 +1429,6 @@ function updateActiveTabUI() {
   });
 }
 
-// Wishlist Heart Handler
 window.toggleLike = function (e, id) {
   e.stopPropagation();
   if (likedIds.includes(id)) {
@@ -1403,7 +1448,6 @@ window.toggleLike = function (e, id) {
   }
 };
 
-// Create / Edit Listing Handlers
 listingForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!authToken) {
@@ -1485,7 +1529,6 @@ window.openCreateModal = function () {
   listingModal.classList.add('show');
 };
 
-// Filter Modal Handlers
 document.getElementById('filterModalBtn').onclick = () => filterModal.classList.add('show');
 document.getElementById('closeFilterModalBtn').onclick = () => filterModal.classList.remove('show');
 
@@ -1494,7 +1537,6 @@ window.applyFilters = function () {
   fetchListings();
 };
 
-// Modal Dismiss Listeners
 document.getElementById('closeModalBtn').onclick = () => listingModal.classList.remove('show');
 document.getElementById('closeDetailModalBtn').onclick = () => detailModal.classList.remove('show');
 document.getElementById('openCreateModalBtn').onclick = openCreateModal;
@@ -1513,7 +1555,6 @@ window.onclick = (e) => {
   if (infoModal && e.target === infoModal) infoModal.classList.remove('show');
 };
 
-// Tab Listeners
 filterTabs.forEach((tab) => {
   tab.addEventListener('click', () => {
     currentFilter = tab.dataset.filter;
@@ -1522,7 +1563,6 @@ filterTabs.forEach((tab) => {
   });
 });
 
-// Search Filter Handling
 heroSearchForm.addEventListener('submit', (e) => {
   e.preventDefault();
   if (currentFilter === 'bookings' || currentFilter === 'wishlist' || currentFilter === 'myListings') {
@@ -1532,9 +1572,6 @@ heroSearchForm.addEventListener('submit', (e) => {
   fetchListings();
 });
 
-// ==========================================
-// FOOTER PAGES & POLICY CONTENT DICTIONARY
-// ==========================================
 const siteFooterContent = {
   about: {
     title: "About VestaGo",
@@ -1692,9 +1729,6 @@ window.closeInfoModal = function() {
   }
 };
 
-// ==========================================
-// DYNAMIC WALKING / TYPEWRITER PLACEHOLDER
-// ==========================================
 (function initWalkingPlaceholder() {
   if (!searchWhere) return;
 

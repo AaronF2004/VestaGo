@@ -5,6 +5,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const Listing = require('../models/Listing');
 const auth = require('../middleware/auth');
+const { sendBookingConfirmation, sendBookingCancellation } = require('../utils/emailService');
 
 // Multer Storage Configuration for Image Uploads
 const storage = multer.diskStorage({
@@ -34,9 +35,9 @@ router.get('/', async (req, res) => {
 
     if (search) {
       query.$or = [
-        { title: { $regex: search,$options: 'i' } },
-        { location: { $regex: search,$options: 'i' } },
-        { description: { $regex: search,$options: 'i' } }
+        { title: { $regex: search, $options: 'i' } },
+        { location: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -189,7 +190,7 @@ router.post('/:id/rate', async (req, res) => {
   }
 });
 
-// DELETE /api/listings/:id/reviews/:reviewIdentifier - Robust Delete Route
+// DELETE /api/listings/:id/reviews/:reviewIdentifier - Delete Review
 router.delete('/:id/reviews/:reviewIdentifier', async (req, res) => {
   try {
     const { id, reviewIdentifier } = req.params;
@@ -200,12 +201,10 @@ router.delete('/:id/reviews/:reviewIdentifier', async (req, res) => {
 
     let matchIndex = -1;
 
-    // 1. Try matching by subdocument _id
     if (mongoose.Types.ObjectId.isValid(reviewIdentifier)) {
       matchIndex = listing.reviews.findIndex(r => r._id && r._id.toString() === reviewIdentifier);
     }
 
-    // 2. Try matching by array index
     if (matchIndex === -1 && !isNaN(reviewIdentifier)) {
       const idx = parseInt(reviewIdentifier, 10);
       if (idx >= 0 && idx < listing.reviews.length) {
@@ -213,7 +212,6 @@ router.delete('/:id/reviews/:reviewIdentifier', async (req, res) => {
       }
     }
 
-    // 3. Try matching by content (comment and/or author)
     if (matchIndex === -1 && (comment || userName)) {
       matchIndex = listing.reviews.findIndex(r => {
         const commentMatch = comment ? r.comment === comment : true;
@@ -222,7 +220,6 @@ router.delete('/:id/reviews/:reviewIdentifier', async (req, res) => {
       });
     }
 
-    // 4. Fallback: match by userName only
     if (matchIndex === -1) {
       matchIndex = listing.reviews.findIndex(r => r.userName === decodeURIComponent(reviewIdentifier));
     }
@@ -231,7 +228,6 @@ router.delete('/:id/reviews/:reviewIdentifier', async (req, res) => {
       return res.status(404).json({ message: 'Review not found in listing' });
     }
 
-    // Remove the target review from the array
     listing.reviews.splice(matchIndex, 1);
     listing.reviewsCount = listing.reviews.length;
 
@@ -251,6 +247,36 @@ router.delete('/:id/reviews/:reviewIdentifier', async (req, res) => {
   } catch (err) {
     console.error('Delete review error:', err);
     return res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/listings/bookings/confirm-email - Dispatch confirmation email
+router.post('/bookings/confirm-email', async (req, res) => {
+  try {
+    const booking = req.body;
+    if (!booking || !booking.userEmail) {
+      return res.status(400).json({ message: 'Booking data and user email are required' });
+    }
+    await sendBookingConfirmation(booking);
+    res.json({ message: 'Confirmation voucher emailed successfully' });
+  } catch (err) {
+    console.error('Email confirmation error:', err);
+    res.status(500).json({ message: 'Failed to send confirmation voucher' });
+  }
+});
+
+// POST /api/listings/bookings/cancel-email - Dispatch cancellation email (No strict auth barrier)
+router.post('/bookings/cancel-email', async (req, res) => {
+  try {
+    const booking = req.body;
+    if (!booking || !booking.userEmail) {
+      return res.status(400).json({ message: 'Booking data and user email are required' });
+    }
+    await sendBookingCancellation(booking);
+    res.json({ message: 'Cancellation confirmation emailed successfully' });
+  } catch (err) {
+    console.error('Email cancellation error:', err);
+    res.status(500).json({ message: 'Failed to send cancellation email' });
   }
 });
 

@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { sendWelcomeEmail } = require('../utils/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'airbnb_secret_fallback_key';
 
@@ -27,6 +28,11 @@ router.post('/signup', async (req, res) => {
 
     const user = new User({ name, email: email.toLowerCase(), password: hashedPassword });
     await user.save();
+
+    // Dispatch welcome email asynchronously
+    sendWelcomeEmail(user.email, user.name).catch((err) => {
+      console.error('Failed to send welcome email:', err.message);
+    });
 
     const token = jwt.sign({ id: user._id, name: user.name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email } });
