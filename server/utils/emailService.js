@@ -69,9 +69,12 @@ async function sendWelcomeEmail(toEmail, userName) {
 }
 
 /**
- * 2. Booking Confirmation Email
+ * 2. Booking Confirmation Email with Real Check-In & Check-Out (Green)
  */
 async function sendBookingConfirmation(booking) {
+  const checkIn = booking.checkInDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[0] : 'Confirmed');
+  const checkOut = booking.checkOutDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[1] : 'Confirmed');
+
   const html = `
     <div style="font-family: Arial, sans-serif; padding: 24px; color: #222; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
       <h2 style="color: #059669; margin: 0; font-size: 24px; font-weight: 800;">✓ Reservation Confirmed!</h2>
@@ -87,8 +90,16 @@ async function sendBookingConfirmation(booking) {
           <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px;">${booking.title}</td>
         </tr>
         <tr>
-          <td style="padding: 10px 0; color: #666; font-size: 14px;">Dates:</td>
-          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px;">${booking.dates || 'Immediate Confirmation'}</td>
+          <td style="padding: 10px 0; color: #666; font-size: 14px;">Check-In Date:</td>
+          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px; color: #059669;">${checkIn}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; color: #666; font-size: 14px;">Check-Out Date:</td>
+          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px; color: #059669;">${checkOut}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; color: #666; font-size: 14px;">Duration & Party:</td>
+          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px;">${booking.nights || 1} Night(s) · ${booking.guests || 1} Guest(s)</td>
         </tr>
         <tr>
           <td style="padding: 10px 0; color: #666; font-size: 14px;">Location:</td>
@@ -105,6 +116,9 @@ async function sendBookingConfirmation(booking) {
           Protected by VestaCover. Present this confirmation voucher at check-in.
         </p>
       </div>
+      <p style="font-size: 12px; color: #999; margin-top: 18px; border-top: 1px solid #f0f0f0; padding-top: 12px;">
+        © 2026 VestaGo Technologies Inc. All rights reserved.
+      </p>
     </div>
   `;
 
@@ -117,12 +131,15 @@ async function sendBookingConfirmation(booking) {
 }
 
 /**
- * 3. Booking Cancellation Email
+ * 3. Booking Cancellation Email with Check-In & Check-Out (Red)
  */
 async function sendBookingCancellation(booking) {
+  const checkIn = booking.checkInDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[0] : 'Confirmed');
+  const checkOut = booking.checkOutDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[1] : 'Confirmed');
+
   const html = `
     <div style="font-family: Arial, sans-serif; padding: 24px; color: #222; max-width: 600px; margin: auto; border: 1px solid #eee; border-radius: 12px; background-color: #ffffff;">
-      <h2 style="color: #d90429; margin: 0; font-size: 24px; font-weight: 800;">✕ Cancel Reservation!!</h2>
+      <h2 style="color: #d90429; margin: 0; font-size: 24px; font-weight: 800;">✕ Reservation Cancelled</h2>
       <p style="color: #555; margin-top: 10px; font-size: 15px;">Hi ${booking.userName},</p>
       <p style="color: #555; line-height: 1.5; font-size: 14px;">
         Your reservation for <strong>${booking.title}</strong> has been cancelled successfully as requested.
@@ -138,8 +155,20 @@ async function sendBookingCancellation(booking) {
           <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px;">${booking.title}</td>
         </tr>
         <tr>
-          <td style="padding: 10px 0; color: #666; font-size: 14px;">Dates:</td>
-          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px;">${booking.dates || 'Flexible Dates'}</td>
+          <td style="padding: 10px 0; color: #666; font-size: 14px;">Check-In Date:</td>
+          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px; color: #d90429 !important;">
+            <font color="#d90429"><span style="color: #d90429 !important;">${checkIn}</span></font>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; color: #666; font-size: 14px;">Check-Out Date:</td>
+          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px; color: #d90429 !important;">
+            <font color="#d90429"><span style="color: #d90429 !important;">${checkOut}</span></font>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 0; color: #666; font-size: 14px;">Reserved Duration:</td>
+          <td style="padding: 10px 0; font-weight: bold; text-align: right; font-size: 14px;">${booking.nights || 1} Night(s) · ${booking.guests || 1} Guest(s)</td>
         </tr>
         <tr style="border-top: 1px solid #e5e7eb;">
           <td style="padding: 14px 0; font-size: 16px; font-weight: bold;">Full Refund Amount:</td>
@@ -152,6 +181,9 @@ async function sendBookingCancellation(booking) {
           A 100% full refund has been triggered through VestaPay to your original payment method. Please allow standard bank processing time.
         </p>
       </div>
+      <p style="font-size: 12px; color: #999; margin-top: 18px; border-top: 1px solid #f0f0f0; padding-top: 12px;">
+        © 2026 VestaGo Technologies Inc. All rights reserved.
+      </p>
     </div>
   `;
 

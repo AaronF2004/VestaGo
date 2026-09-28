@@ -160,7 +160,7 @@ const payUpiId = document.getElementById('payUpiId');
 const payBankSelect = document.getElementById('payBankSelect');
 const payValidationError = document.getElementById('payValidationError');
 
-// Dynamic Check-In / Check-Out
+// Dynamic Check-In / Check-Out for Hero Search
 function initDatePickers() {
   if (!searchCheckin || !searchCheckout) return;
 
@@ -506,6 +506,9 @@ async function initDetailMap(locationQuery, title) {
   }, 300);
 }
 
+// -------------------------------------------------------------
+// DETAIL MODAL WITH MANDATORY CHECK-IN & CHECK-OUT CALENDAR
+// -------------------------------------------------------------
 window.openDetailModal = async function (id) {
   try {
     const res = await fetch(`${API_URL}/${id}`);
@@ -517,7 +520,6 @@ window.openDetailModal = async function (id) {
 
     const reviewsMarkup = item.reviews && item.reviews.length > 0 
       ? item.reviews.map((r, index) => {
-          const identifier = r._id ? r._id.toString() : index.toString();
           const canDelete = currentUser && (r.userName === currentUser.name || (item.owner && (item.owner._id === currentUser.id || item.owner === currentUser.id)));
 
           return `
@@ -525,7 +527,7 @@ window.openDetailModal = async function (id) {
               <div class="review-header">
                 <span class="review-author">${r.userName}</span>
                 <span class="review-date">
-                  ${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recent'}
+                  ${r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent'}
                   ${canDelete ? `
                     <button type="button" class="btn-delete-review" title="Delete review" onclick="promptDeleteReview(event, '${item._id}',${index})">
                       <i class="fa-solid fa-trash-can"></i>
@@ -591,18 +593,77 @@ window.openDetailModal = async function (id) {
         </div>
       </div>
 
+      <!-- Compulsory Reservation Box -->
       <div class="checkout-box">
         <div>
           <h3>₹${Number(item.price).toLocaleString()} <span style="font-size:0.85rem; font-weight:normal;">${item.type === 'hotel' ? '/ night' : '/ guest'}</span></h3>
-          <small>Free cancellation up to 48 hours before check-in</small>
+          <small>Select mandatory reservation dates below</small>
         </div>
-        <button class="submit-btn pay-now-btn" style="width: auto; padding: 12px 30px;" onclick="openCheckoutGateway('${item._id}', '${item.title.replace(/'/g, "\\'")}', '${item.type}', ${item.price}, '${item.location.replace(/'/g, "\\'")}', '${resolveImage(images[0])}')">
-          ${item.type === 'hotel' ? 'Reserve Stay' : 'Book Table'}
-        </button>
+
+        <div class="detail-booking-controls">
+          <div class="detail-booking-field">
+            <label for="detailCheckin">Check In *</label>
+            <input type="date" id="detailCheckin" required />
+          </div>
+          <div class="detail-booking-field">
+            <label for="detailCheckout">Check Out *</label>
+            <input type="date" id="detailCheckout" required />
+          </div>
+          <div class="detail-booking-field" style="max-width: 110px;">
+            <label for="detailGuests">Guests *</label>
+            <input type="number" id="detailGuests" min="1" max="20" value="1" required />
+          </div>
+        </div>
+
+        <p id="detailBookingError" class="detail-booking-error"></p>
+
+        <div class="checkout-box-bottom">
+          <small style="color: var(--text-muted);"><i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Free cancellation up to 48 hours prior</small>
+          <button class="submit-btn pay-now-btn" style="width: auto; padding: 12px 30px;" onclick="validateAndOpenGateway('${item._id}', '${item.title.replace(/'/g, "\\'")}', '${item.type}', ${item.price}, '${item.location.replace(/'/g, "\\'")}', '${resolveImage(images[0])}')">
+            ${item.type === 'hotel' ? 'Reserve Stay' : 'Book Table'}
+          </button>
+        </div>
       </div>
     `;
 
     detailModal.classList.add('show');
+
+    // Date picker constraints & synchronization
+    const dtIn = document.getElementById('detailCheckin');
+    const dtOut = document.getElementById('detailCheckout');
+    const dtGuests = document.getElementById('detailGuests');
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    dtIn.min = `${yyyy}-${mm}-${dd}`;
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tmY = tomorrow.getFullYear();
+    const tmM = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const tmD = String(tomorrow.getDate()).padStart(2, '0');
+    dtOut.min = `${tmY}-${tmM}-${tmD}`;
+
+    // Prefill from search bar if entered
+    if (searchCheckin && searchCheckin.value) dtIn.value = searchCheckin.value;
+    if (searchCheckout && searchCheckout.value) dtOut.value = searchCheckout.value;
+    if (searchGuests && searchGuests.value) dtGuests.value = searchGuests.value;
+
+    dtIn.addEventListener('change', () => {
+      if (dtIn.value) {
+        const nextDay = new Date(dtIn.value);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const ny = nextDay.getFullYear();
+        const nm = String(nextDay.getMonth() + 1).padStart(2, '0');
+        const nd = String(nextDay.getDate()).padStart(2, '0');
+        dtOut.min = `${ny}-${nm}-${nd}`;
+        if (!dtOut.value || dtOut.value <= dtIn.value) {
+          dtOut.value = `${ny}-${nm}-${nd}`;
+        }
+      }
+    });
 
     setTimeout(() => {
       initDetailMap(item.location, item.title);
@@ -800,24 +861,51 @@ if (payCardCvc) {
   });
 }
 
-window.openCheckoutGateway = function (listingId, title, type, price, location, image) {
+// -------------------------------------------------------------
+// MANDATORY GATEWAY VALIDATION (NO FLEXIBLE DATES)
+// -------------------------------------------------------------
+window.validateAndOpenGateway = function(listingId, title, type, price, location, image) {
+  const dtIn = document.getElementById('detailCheckin');
+  const dtOut = document.getElementById('detailCheckout');
+  const dtGuests = document.getElementById('detailGuests');
+  const errBox = document.getElementById('detailBookingError');
+
+  if (errBox) errBox.style.display = 'none';
+
   if (!currentUser) {
-    showToast('Please log in to complete your reservation');
+    showToast('Please log in to make a reservation');
     openAuthModal('Log In');
     return;
   }
 
-  const cin = (searchCheckin && searchCheckin.value) ? new Date(searchCheckin.value) : null;
-  const cout = (searchCheckout && searchCheckout.value) ? new Date(searchCheckout.value) : null;
-  
-  if (cin && cout && cout > cin) {
-    const diffTime = Math.abs(cout - cin);
-    currentBookingNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  } else {
-    currentBookingNights = 1;
+  if (!dtIn.value || !dtOut.value) {
+    if (errBox) {
+      errBox.innerText = 'Please select both Check-In and Check-Out dates to proceed.';
+      errBox.style.display = 'block';
+    }
+    return;
   }
 
-  currentGuestsCount = (searchGuests && Number(searchGuests.value)) || 1;
+  const cin = new Date(dtIn.value);
+  const cout = new Date(dtOut.value);
+
+  if (cout <= cin) {
+    if (errBox) {
+      errBox.innerText = 'Check-Out date must be after Check-In date.';
+      errBox.style.display = 'block';
+    }
+    return;
+  }
+
+  const diffTime = Math.abs(cout - cin);
+  currentBookingNights = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  currentGuestsCount = parseInt(dtGuests.value, 10) || 1;
+
+  const formatDate = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  const checkInDateFormatted = formatDate(cin);
+  const checkOutDateFormatted = formatDate(cout);
+  const dateFormattedString = `${checkInDateFormatted} to ${checkOutDateFormatted}`;
+
   const baseTotal = price * currentBookingNights;
   const cleaningFee = type === 'hotel' ? 450 : 0;
   const taxes = Math.round((baseTotal + cleaningFee) * 0.12);
@@ -832,18 +920,20 @@ window.openCheckoutGateway = function (listingId, title, type, price, location, 
     image,
     nights: currentBookingNights,
     guests: currentGuestsCount,
+    checkInDate: checkInDateFormatted,
+    checkOutDate: checkOutDateFormatted,
+    dates: dateFormattedString,
     baseTotal,
     cleaningFee,
     taxes,
-    finalTotal,
-    dates: cin && cout ? `${cin.toLocaleDateString()} - ${cout.toLocaleDateString()}` : 'Flexible Date Reservation'
+    finalTotal
   };
 
   document.getElementById('ckListingTitle').innerText = title;
   document.getElementById('ckListingType').innerText = type === 'hotel' ? 'Stay' : 'Dining';
   document.getElementById('ckListingLoc').innerText = location;
   document.getElementById('ckListingImg').src = image;
-  document.getElementById('ckDateRange').innerText = activeCheckoutItem.dates;
+  document.getElementById('ckDateRange').innerText = dateFormattedString;
   document.getElementById('ckGuestCount').innerText = `${currentGuestsCount} Guest(s)`;
 
   document.getElementById('ckRateMath').innerText = `₹${price.toLocaleString()} x ${currentBookingNights} ${type === 'hotel' ? 'night(s)' : 'seat(s)'}`;
@@ -931,6 +1021,8 @@ window.executeMockPayment = function () {
       price: activeCheckoutItem.price,
       nights: activeCheckoutItem.nights,
       guests: activeCheckoutItem.guests,
+      checkInDate: activeCheckoutItem.checkInDate,
+      checkOutDate: activeCheckoutItem.checkOutDate,
       dates: activeCheckoutItem.dates,
       taxes: activeCheckoutItem.taxes,
       cleaningFee: activeCheckoutItem.cleaningFee,
@@ -965,8 +1057,14 @@ function showPaymentError(msg) {
   payValidationError.style.display = 'block';
 }
 
+// -------------------------------------------------------------
+// RECEIPT DISPLAY WITH CHECK-IN & CHECK-OUT DATES
+// -------------------------------------------------------------
 function showReceipt(booking) {
   activeReceiptBooking = booking;
+
+  const checkIn = booking.checkInDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[0] : 'Confirmed');
+  const checkOut = booking.checkOutDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[1] : 'Confirmed');
 
   receiptContent.innerHTML = `
     <div class="receipt-row">
@@ -986,8 +1084,16 @@ function showReceipt(booking) {
       <strong>${booking.type === 'hotel' ? 'Villa / Stay' : 'Dining Reservation'}</strong>
     </div>
     <div class="receipt-row">
-      <span>Dates:</span>
-      <strong>${booking.dates || 'Immediate Confirmation'}</strong>
+      <span>Check-in:</span>
+      <strong>${checkIn}</strong>
+    </div>
+    <div class="receipt-row">
+      <span>Check-out:</span>
+      <strong>${checkOut}</strong>
+    </div>
+    <div class="receipt-row">
+      <span>Duration & Party:</span>
+      <strong>${booking.nights || 1} Night(s) · ${booking.guests || 1} Guest(s)</strong>
     </div>
     <div class="receipt-row">
       <span>Location:</span>
@@ -1025,6 +1131,9 @@ function showReceipt(booking) {
   receiptModal.classList.add('show');
 }
 
+// -------------------------------------------------------------
+// DOWNLOAD PDF VOUCHER WITH EXACT DATES
+// -------------------------------------------------------------
 function downloadReceiptPdf(booking) {
   if (!booking) return;
 
@@ -1033,6 +1142,9 @@ function downloadReceiptPdf(booking) {
     showToast('Please allow popups to download your receipt');
     return;
   }
+
+  const checkIn = booking.checkInDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[0] : 'N/A');
+  const checkOut = booking.checkOutDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[1] : 'N/A');
 
   const printHtml = `
     <!DOCTYPE html>
@@ -1158,8 +1270,16 @@ function downloadReceiptPdf(booking) {
           <strong>${booking.type === 'hotel' ? 'Villa / Boutique Stay' : 'Bistro / Dining Reservation'}</strong>
         </div>
         <div class="row">
-          <span>Reservation Dates:</span>
-          <strong>${booking.dates || 'Immediate Confirmation'}</strong>
+          <span>Check-In Date:</span>
+          <strong>${checkIn}</strong>
+        </div>
+        <div class="row">
+          <span>Check-Out Date:</span>
+          <strong>${checkOut}</strong>
+        </div>
+        <div class="row">
+          <span>Duration & Party:</span>
+          <strong>${booking.nights || 1} Night(s) · ${booking.guests || 1} Guest(s)</strong>
         </div>
         <div class="row">
           <span>Location:</span>
@@ -1177,7 +1297,7 @@ function downloadReceiptPdf(booking) {
         <div class="divider"></div>
 
         <div class="row">
-          <span>Base Tariff (${booking.nights || 1} unit/night):</span>
+          <span>Base Tariff (${booking.nights || 1} night(s)):</span>
           <strong>₹${Number(booking.price * (booking.nights || 1)).toLocaleString()}</strong>
         </div>
         <div class="row">
@@ -1237,14 +1357,12 @@ btnConfirmCancelBooking.onclick = async function () {
 
   const targetBooking = userBookings.find(b => b.id === pendingCancelBookingId);
 
-  // Remove booking from state and storage
   userBookings = userBookings.filter(b => b.id !== pendingCancelBookingId);
   localStorage.setItem('userBookings', JSON.stringify(userBookings));
 
   confirmCancelModal.classList.remove('show');
   receiptModal.classList.remove('show');
 
-  // Trigger cancellation email to guest
   if (targetBooking && targetBooking.userEmail) {
     try {
       const res = await fetch(`${API_URL}/bookings/cancel-email`, {
@@ -1309,29 +1427,35 @@ function renderBookings() {
     return;
   }
 
-  listingsGrid.innerHTML = myBookings.map(b => `
-    <article class="booking-card">
-      <div class="booking-card-header">
-        <span class="booking-badge">${b.status}</span>
-        <small style="color: var(--text-muted);">${b.id}</small>
-      </div>
-      <div class="card-img-wrapper" style="aspect-ratio: 16 / 9;">
-        <img src="${b.image}" alt="${b.title}" class="card-img" />
-      </div>
-      <div>
-        <h3 style="font-size: 1.05rem; margin-bottom: 4px; color: var(--text-dark);">${b.title}</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-location-dot"></i> ${b.location}</p>
-        <p style="font-size:0.85rem; color: var(--text-muted); margin-top:4px;">${b.dates || 'Confirmed'}</p>
-        <p style="margin-top: 8px; font-size: 0.95rem; color: var(--text-dark);">
-          <strong>Total: ₹${Number(b.totalAmount).toLocaleString()}</strong>
-        </p>
-      </div>
-      <div style="display: flex; gap: 8px; margin-top: 4px;">
-        <button class="btn-card" onclick='showReceipt(${JSON.stringify(b)})'>View Receipt</button>
-        <button class="btn-card btn-delete" onclick="promptCancelBooking('${b.id}')">Cancel</button>
-      </div>
-    </article>
-  `).join('');
+  listingsGrid.innerHTML = myBookings.map(b => {
+    const displayDates = (b.checkInDate && b.checkOutDate)
+      ? `${b.checkInDate} to ${b.checkOutDate}`
+      : (b.dates || 'Confirmed Reservation');
+
+    return `
+      <article class="booking-card">
+        <div class="booking-card-header">
+          <span class="booking-badge">${b.status}</span>
+          <small style="color: var(--text-muted);">${b.id}</small>
+        </div>
+        <div class="card-img-wrapper" style="aspect-ratio: 16 / 9;">
+          <img src="${b.image}" alt="${b.title}" class="card-img" />
+        </div>
+        <div>
+          <h3 style="font-size: 1.05rem; margin-bottom: 4px; color: var(--text-dark);">${b.title}</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;"><i class="fa-solid fa-location-dot"></i> ${b.location}</p>
+          <p style="font-size:0.85rem; color: var(--text-muted); margin-top:4px;">${displayDates}</p>
+          <p style="margin-top: 8px; font-size: 0.95rem; color: var(--text-dark);">
+            <strong>Total: ₹${Number(b.totalAmount).toLocaleString()}</strong>
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button class="btn-card" onclick='showReceipt(${JSON.stringify(b)})'>View Receipt</button>
+          <button class="btn-card btn-delete" onclick="promptCancelBooking('${b.id}')">Cancel</button>
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 async function renderWishlist() {
