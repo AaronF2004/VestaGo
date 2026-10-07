@@ -11,51 +11,79 @@ const BASE_URL = isLocal
 const API_URL = `${BASE_URL}/api/listings`;
 const AUTH_URL = `${BASE_URL}/api/auth`;
 
-// Split to ensure GitHub push scanning doesn't block the commit
 const MAPBOX_TOKEN = 'pk.' + 'eyJ1IjoiYWFyb24wODExMjAwNCIsImEiOiJjbXVnbjJ3YWwwOWduMndxeWw0ZTJkNm1hIn0.NagTfSeYYGxGDulv1jf1Rw';
 
 // ==========================================
-// DARK / LIGHT MODE ENGINE
+// GLOBAL LOADER CONTROLLER
+// ==========================================
+const globalLoader = document.getElementById('globalLoader');
+
+function showLoader() {
+  if (globalLoader) globalLoader.classList.add('active');
+}
+
+function hideLoader() {
+  if (globalLoader) globalLoader.classList.remove('active');
+}
+
+// ==========================================
+// SYNCHRONIZED DARK / LIGHT MODE ENGINE
 // ==========================================
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 const themeToggleIcon = document.getElementById('themeToggleIcon');
+const menuThemeToggleBtn = document.getElementById('menuThemeToggleBtn');
+const menuThemeToggleIcon = document.getElementById('menuThemeToggleIcon');
+const menuThemeToggleText = document.getElementById('menuThemeToggleText');
 
 function applyTheme(theme) {
-  if (theme === 'dark') {
-    document.body.classList.add('dark-mode');
-    if (themeToggleIcon) {
-      themeToggleIcon.classList.remove('fa-moon');
-      themeToggleIcon.classList.add('fa-sun');
-    }
-  } else {
-    document.body.classList.remove('dark-mode');
-    if (themeToggleIcon) {
-      themeToggleIcon.classList.remove('fa-sun');
-      themeToggleIcon.classList.add('fa-moon');
-    }
+  const isDark = theme === 'dark';
+  document.body.classList.toggle('dark-mode', isDark);
+
+  // Sync Header Button
+  if (themeToggleIcon) {
+    themeToggleIcon.classList.toggle('fa-sun', isDark);
+    themeToggleIcon.classList.toggle('fa-moon', !isDark);
+  }
+
+  // Sync Mobile Menu Button
+  if (menuThemeToggleIcon) {
+    menuThemeToggleIcon.classList.toggle('fa-sun', isDark);
+    menuThemeToggleIcon.classList.toggle('fa-moon', !isDark);
+  }
+  if (menuThemeToggleText) {
+    menuThemeToggleText.innerText = isDark ? 'Light Mode' : 'Dark Mode';
   }
 }
 
-// Check saved theme preference or system preference
+function toggleTheme() {
+  const currentlyDark = document.body.classList.contains('dark-mode');
+  const targetTheme = currentlyDark ? 'light' : 'dark';
+  applyTheme(targetTheme);
+  localStorage.setItem('vestago_theme', targetTheme);
+  showToast(`${targetTheme === 'dark' ? 'Dark' : 'Light'} mode enabled`);
+}
+
 const savedTheme = localStorage.getItem('vestago_theme') || 
   (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
 applyTheme(savedTheme);
 
 if (themeToggleBtn) {
-  themeToggleBtn.addEventListener('click', () => {
-    const isDark = document.body.classList.contains('dark-mode');
-    const newTheme = isDark ? 'light' : 'dark';
-    applyTheme(newTheme);
-    localStorage.setItem('vestago_theme', newTheme);
-    showToast(`${newTheme === 'dark' ? 'Dark' : 'Light'} mode enabled`);
+  themeToggleBtn.addEventListener('click', toggleTheme);
+}
+
+if (menuThemeToggleBtn) {
+  menuThemeToggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleTheme();
+    userDropdown.classList.remove('show');
   });
 }
 
-// Helper: Get user-specific storage keys
 function getWishlistStorageKey() {
-  if (currentUser && (currentUser.id || currentUser._id)) {
-    return `likedListings_${currentUser.id || currentUser._id}`;
+  const currentUserId = currentUser ? (currentUser.id || currentUser._id) : null;
+  if (currentUserId) {
+    return `likedListings_${currentUserId}`;
   }
   return 'likedListings_guest';
 }
@@ -79,6 +107,7 @@ let pendingCancelBookingId = null;
 // Track review & listing pending deletion
 let pendingDeleteReview = null;
 let pendingDeleteListingId = null;
+let pendingAdminDeleteListingId = null;
 
 // Track active Mapbox map instance
 let activeMapboxInstance = null;
@@ -100,6 +129,7 @@ const loggedOutMenu = document.getElementById('loggedOutMenu');
 const userNameDisplay = document.getElementById('userNameDisplay');
 const utilityControls = document.getElementById('utilityControls');
 const heroBanner = document.getElementById('heroBanner');
+const adminMenuBtn = document.getElementById('adminMenuBtn');
 
 // Search & Controls
 const heroSearchForm = document.getElementById('heroSearchForm');
@@ -119,6 +149,10 @@ const checkoutModal = document.getElementById('checkoutModal');
 const confirmCancelModal = document.getElementById('confirmCancelModal');
 const deleteReviewModal = document.getElementById('deleteReviewModal');
 const deleteListingModal = document.getElementById('deleteListingModal');
+const adminModal = document.getElementById('adminModal');
+const adminDeleteModal = document.getElementById('adminDeleteModal');
+const adminTargetListingTitle = document.getElementById('adminTargetListingTitle');
+const btnConfirmAdminDelete = document.getElementById('btnConfirmAdminDelete');
 const detailContent = document.getElementById('detailContent');
 const receiptContent = document.getElementById('receiptContent');
 const btnCancelBookingModal = document.getElementById('btnCancelBookingModal');
@@ -160,7 +194,7 @@ const payUpiId = document.getElementById('payUpiId');
 const payBankSelect = document.getElementById('payBankSelect');
 const payValidationError = document.getElementById('payValidationError');
 
-// Dynamic Check-In / Check-Out for Hero Search
+// Date Pickers initialization
 function initDatePickers() {
   if (!searchCheckin || !searchCheckout) return;
 
@@ -204,7 +238,7 @@ function initDatePickers() {
 
 initDatePickers();
 
-// Sync Auth
+// Sync Auth UI with Admin Visibility Guard
 syncAuthUI();
 
 function syncAuthUI() {
@@ -212,9 +246,15 @@ function syncAuthUI() {
     loggedOutMenu.style.display = 'none';
     loggedInMenu.style.display = 'block';
     userNameDisplay.innerText = `Hi, ${currentUser.name}`;
+
+    // Admin Access Guard: ONLY visible if user has isAdmin: true
+    if (adminMenuBtn) {
+      adminMenuBtn.style.display = currentUser.isAdmin ? 'flex' : 'none';
+    }
   } else {
     loggedOutMenu.style.display = 'block';
     loggedInMenu.style.display = 'none';
+    if (adminMenuBtn) adminMenuBtn.style.display = 'none';
   }
 }
 
@@ -279,6 +319,7 @@ authForm.addEventListener('submit', async (e) => {
   };
   if (isSignUp) payload.name = authName.value.trim();
 
+  showLoader();
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -314,6 +355,8 @@ authForm.addEventListener('submit', async (e) => {
   } catch (err) {
     authErrorMsg.innerText = 'Server error. Please try again.';
     authErrorMsg.style.display = 'block';
+  } finally {
+    hideLoader();
   }
 });
 
@@ -359,6 +402,7 @@ async function fetchListings() {
 
   utilityControls.style.display = 'flex';
   renderSkeletons();
+  showLoader();
 
   try {
     let queryParams = new URLSearchParams();
@@ -390,6 +434,8 @@ async function fetchListings() {
         <h3>Unable to reach VestaGo servers</h3>
         <p>Please check your connection or wait a moment.</p>
       </div>`;
+  } finally {
+    setTimeout(hideLoader, 200);
   }
 }
 
@@ -411,10 +457,12 @@ function renderListings(listings) {
     return;
   }
 
+  const currentUserId = currentUser ? (currentUser.id || currentUser._id) : null;
+
   listingsGrid.innerHTML = listings.map((item) => {
     const isLiked = likedIds.includes(item._id);
     const coverImage = resolveImage(item.images && item.images.length ? item.images[0] : item.image);
-    const isOwner = currentUser && item.owner && (item.owner._id === currentUser.id || item.owner === currentUser.id);
+    const isOwner = currentUserId && item.owner && ((item.owner._id || item.owner) === currentUserId);
 
     return `
       <article class="card" onclick="openDetailModal('${item._id}')" tabindex="0" role="button" aria-label="${item.title}">
@@ -465,7 +513,6 @@ async function initDetailMap(locationQuery, title) {
   }
 
   mapboxgl.accessToken = MAPBOX_TOKEN;
-
   let coordinates = [73.8567, 18.5204];
 
   try {
@@ -507,9 +554,10 @@ async function initDetailMap(locationQuery, title) {
 }
 
 // -------------------------------------------------------------
-// DETAIL MODAL WITH MANDATORY CHECK-IN & CHECK-OUT CALENDAR
+// DETAIL MODAL
 // -------------------------------------------------------------
 window.openDetailModal = async function (id) {
+  showLoader();
   try {
     const res = await fetch(`${API_URL}/${id}`);
     const item = await res.json();
@@ -517,10 +565,13 @@ window.openDetailModal = async function (id) {
     selectedRatingScore = 5;
 
     window.currentListingReviews = item.reviews || [];
+    const currentUserId = currentUser ? (currentUser.id || currentUser._id) : null;
 
     const reviewsMarkup = item.reviews && item.reviews.length > 0 
       ? item.reviews.map((r, index) => {
-          const canDelete = currentUser && (r.userName === currentUser.name || (item.owner && (item.owner._id === currentUser.id || item.owner === currentUser.id)));
+          const isReviewAuthor = currentUser && r.userName === currentUser.name;
+          const isPropertyOwner = currentUserId && item.owner && ((item.owner._id || item.owner) === currentUserId);
+          const canDelete = isReviewAuthor || isPropertyOwner || (currentUser && currentUser.isAdmin);
 
           return `
             <div class="review-item" id="review-dom-${index}">
@@ -593,7 +644,6 @@ window.openDetailModal = async function (id) {
         </div>
       </div>
 
-      <!-- Compulsory Reservation Box -->
       <div class="checkout-box">
         <div>
           <h3>₹${Number(item.price).toLocaleString()} <span style="font-size:0.85rem; font-weight:normal;">${item.type === 'hotel' ? '/ night' : '/ guest'}</span></h3>
@@ -628,7 +678,6 @@ window.openDetailModal = async function (id) {
 
     detailModal.classList.add('show');
 
-    // Date picker constraints & synchronization
     const dtIn = document.getElementById('detailCheckin');
     const dtOut = document.getElementById('detailCheckout');
     const dtGuests = document.getElementById('detailGuests');
@@ -646,7 +695,6 @@ window.openDetailModal = async function (id) {
     const tmD = String(tomorrow.getDate()).padStart(2, '0');
     dtOut.min = `${tmY}-${tmM}-${tmD}`;
 
-    // Prefill from search bar if entered
     if (searchCheckin && searchCheckin.value) dtIn.value = searchCheckin.value;
     if (searchCheckout && searchCheckout.value) dtOut.value = searchCheckout.value;
     if (searchGuests && searchGuests.value) dtGuests.value = searchGuests.value;
@@ -671,6 +719,8 @@ window.openDetailModal = async function (id) {
 
   } catch (err) {
     console.error('Failed to load item detail:', err);
+  } finally {
+    hideLoader();
   }
 };
 
@@ -692,6 +742,7 @@ window.handleReviewSubmit = async function (e, id) {
   const comment = document.getElementById('reviewCommentInput').value.trim();
   const userName = currentUser ? currentUser.name : 'Guest Traveler';
 
+  showLoader();
   try {
     const res = await fetch(`${API_URL}/${id}/rate`, {
       method: 'POST',
@@ -712,6 +763,8 @@ window.handleReviewSubmit = async function (e, id) {
     }
   } catch (err) {
     console.error('Error submitting review:', err);
+  } finally {
+    hideLoader();
   }
 };
 
@@ -742,6 +795,7 @@ btnConfirmDeleteReview.onclick = async function () {
   closeDeleteReviewModal();
 
   const identifier = reviewId || reviewIndex;
+  showLoader();
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -756,11 +810,6 @@ btnConfirmDeleteReview.onclick = async function () {
     });
 
     if (res.ok) {
-      const targetElement = document.getElementById(`review-dom-${reviewIndex}`);
-      if (targetElement) {
-        targetElement.remove();
-      }
-
       showToast('Review deleted permanently');
       await openDetailModal(listingId);
       fetchListings();
@@ -769,8 +818,9 @@ btnConfirmDeleteReview.onclick = async function () {
       showToast(err.message || 'Could not delete review');
     }
   } catch (err) {
-    console.error('DELETE error detail:', err);
     showToast('Network error while deleting review');
+  } finally {
+    hideLoader();
   }
 };
 
@@ -789,13 +839,14 @@ btnConfirmDeleteListing.onclick = async function () {
   const id = pendingDeleteListingId;
   closeDeleteListingModal();
 
+  showLoader();
   try {
     const res = await fetch(`${API_URL}/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
     if (res.ok) {
-      showToast('Listing has been successfully deleted from VestaGo.');
+      showToast('Listing has been successfully deleted.');
       allListingsCache = [];
       fetchListings();
     } else {
@@ -803,8 +854,9 @@ btnConfirmDeleteListing.onclick = async function () {
       showToast(err.message || 'Could not delete listing');
     }
   } catch (err) {
-    console.error('Delete listing error:', err);
     showToast('Network error while deleting listing');
+  } finally {
+    hideLoader();
   }
 };
 
@@ -861,9 +913,6 @@ if (payCardCvc) {
   });
 }
 
-// -------------------------------------------------------------
-// MANDATORY GATEWAY VALIDATION (NO FLEXIBLE DATES)
-// -------------------------------------------------------------
 window.validateAndOpenGateway = function(listingId, title, type, price, location, image) {
   const dtIn = document.getElementById('detailCheckin');
   const dtOut = document.getElementById('detailCheckout');
@@ -1039,7 +1088,6 @@ window.executeMockPayment = function () {
     userBookings.unshift(newBooking);
     localStorage.setItem('userBookings', JSON.stringify(userBookings));
 
-    // Send confirmation voucher to guest's email
     fetch(`${API_URL}/bookings/confirm-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1057,9 +1105,6 @@ function showPaymentError(msg) {
   payValidationError.style.display = 'block';
 }
 
-// -------------------------------------------------------------
-// RECEIPT DISPLAY WITH CHECK-IN & CHECK-OUT DATES
-// -------------------------------------------------------------
 function showReceipt(booking) {
   activeReceiptBooking = booking;
 
@@ -1131,9 +1176,6 @@ function showReceipt(booking) {
   receiptModal.classList.add('show');
 }
 
-// -------------------------------------------------------------
-// DOWNLOAD PDF VOUCHER WITH EXACT DATES
-// -------------------------------------------------------------
 function downloadReceiptPdf(booking) {
   if (!booking) return;
 
@@ -1153,181 +1195,38 @@ function downloadReceiptPdf(booking) {
       <meta charset="UTF-8">
       <title>VestaGo Voucher - ${booking.id}</title>
       <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          color: #222;
-          padding: 40px;
-          margin: 0;
-          background: #fff;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 2px solid #ff385c;
-          padding-bottom: 20px;
-          margin-bottom: 30px;
-        }
-        .brand {
-          font-size: 28px;
-          font-weight: 800;
-          color: #ff385c;
-        }
-        .brand span {
-          color: #8a2387;
-        }
-        .tagline {
-          font-size: 13px;
-          color: #666;
-          margin-top: 4px;
-        }
-        .ref-badge {
-          text-align: right;
-        }
-        .ref-badge h2 {
-          margin: 0;
-          font-size: 20px;
-          color: #111;
-        }
-        .ref-badge p {
-          margin: 4px 0 0;
-          font-size: 12px;
-          color: #047857;
-          font-weight: 700;
-        }
-        .card {
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 24px;
-          background: #fafafa;
-          margin-bottom: 25px;
-        }
-        .row {
-          display: flex;
-          justify-content: space-between;
-          padding: 9px 0;
-          font-size: 14px;
-        }
-        .row strong {
-          color: #111;
-          text-align: right;
-        }
-        .divider {
-          height: 1px;
-          background: #e5e7eb;
-          margin: 14px 0;
-        }
-        .total-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 18px;
-          font-weight: 800;
-          color: #111;
-          padding-top: 10px;
-        }
-        .total-price {
-          color: #ff385c;
-        }
-        .footer-note {
-          text-align: center;
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 40px;
-          line-height: 1.6;
-        }
-        @media print {
-          body { padding: 20px; }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #222; padding: 40px; margin: 0; background: #fff; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ff385c; padding-bottom: 20px; margin-bottom: 30px; }
+        .brand { font-size: 28px; font-weight: 800; color: #ff385c; }
+        .brand span { color: #8a2387; }
+        .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; background: #fafafa; margin-bottom: 25px; }
+        .row { display: flex; justify-content: space-between; padding: 9px 0; font-size: 14px; }
+        .divider { height: 1px; background: #e5e7eb; margin: 14px 0; }
+        .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; color: #111; padding-top: 10px; }
+        .total-price { color: #ff385c; }
+        .footer-note { text-align: center; font-size: 12px; color: #6b7280; margin-top: 40px; line-height: 1.6; }
       </style>
     </head>
     <body>
       <div class="header">
         <div>
           <div class="brand">Vesta<span>Go</span></div>
-          <div class="tagline">Official Booking Voucher & Tax Invoice</div>
+          <div style="font-size: 13px; color: #666;">Official Booking Voucher & Tax Invoice</div>
         </div>
-        <div class="ref-badge">
-          <h2>${booking.id}</h2>
-          <p>CONFIRMED & GUARANTEED</p>
+        <div style="text-align: right;">
+          <h2 style="margin: 0;">${booking.id}</h2>
+          <p style="color: #047857; font-weight: 700; margin: 4px 0 0;">CONFIRMED</p>
         </div>
       </div>
-
       <div class="card">
-        <div class="row">
-          <span>Guest Name:</span>
-          <strong>${booking.userName}</strong>
-        </div>
-        <div class="row">
-          <span>Email Address:</span>
-          <strong>${booking.userEmail}</strong>
-        </div>
-        <div class="row">
-          <span>Property / Venue:</span>
-          <strong>${booking.title}</strong>
-        </div>
-        <div class="row">
-          <span>Category:</span>
-          <strong>${booking.type === 'hotel' ? 'Villa / Boutique Stay' : 'Bistro / Dining Reservation'}</strong>
-        </div>
-        <div class="row">
-          <span>Check-In Date:</span>
-          <strong>${checkIn}</strong>
-        </div>
-        <div class="row">
-          <span>Check-Out Date:</span>
-          <strong>${checkOut}</strong>
-        </div>
-        <div class="row">
-          <span>Duration & Party:</span>
-          <strong>${booking.nights || 1} Night(s) · ${booking.guests || 1} Guest(s)</strong>
-        </div>
-        <div class="row">
-          <span>Location:</span>
-          <strong>${booking.location}</strong>
-        </div>
-        <div class="row">
-          <span>Payment Method:</span>
-          <strong style="color: #047857;">${booking.paymentMethodUsed || 'VestaPay Verified'}</strong>
-        </div>
-        <div class="row">
-          <span>Date of Issue:</span>
-          <strong>${booking.bookingDate || new Date().toLocaleDateString('en-IN')}</strong>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="row">
-          <span>Base Tariff (${booking.nights || 1} night(s)):</span>
-          <strong>₹${Number(booking.price * (booking.nights || 1)).toLocaleString()}</strong>
-        </div>
-        <div class="row">
-          <span>Cleaning & Maintenance fee:</span>
-          <strong>₹${Number(booking.cleaningFee || 0).toLocaleString()}</strong>
-        </div>
-        <div class="row">
-          <span>VestaGo Service & GST (12%):</span>
-          <strong>₹${Number(booking.taxes).toLocaleString()}</strong>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="total-row">
-          <span>Total Paid:</span>
-          <span class="total-price">₹${Number(booking.totalAmount).toLocaleString()}</span>
-        </div>
+        <div class="row"><span>Guest Name:</span><strong>${booking.userName}</strong></div>
+        <div class="row"><span>Property:</span><strong>${booking.title}</strong></div>
+        <div class="row"><span>Check-In:</span><strong>${checkIn}</strong></div>
+        <div class="row"><span>Check-Out:</span><strong>${checkOut}</strong></div>
+        <div class="row"><span>Total Paid:</span><strong style="color: #ff385c;">₹${Number(booking.totalAmount).toLocaleString()}</strong></div>
       </div>
-
-      <div class="footer-note">
-        This document serves as your verified proof of reservation protected by <strong>VestaCover</strong>.<br/>
-        Please present this voucher or reference ID upon arrival.<br/>
-        © 2026 VestaGo Technologies Inc. · All rights reserved.
-      </div>
-
-      <script>
-        window.onload = function() {
-          window.print();
-        };
-      <\/script>
+      <div class="footer-note">Protected by VestaCover. Present this voucher upon arrival.</div>
+      <script>window.onload = function() { window.print(); };<\/script>
     </body>
     </html>
   `;
@@ -1341,7 +1240,6 @@ window.closeReceiptModal = function () {
   receiptModal.classList.remove('show');
 };
 
-// Booking Cancellation System
 window.promptCancelBooking = function (bookingId) {
   pendingCancelBookingId = bookingId;
   confirmCancelModal.classList.add('show');
@@ -1356,7 +1254,6 @@ btnConfirmCancelBooking.onclick = async function () {
   if (!pendingCancelBookingId) return;
 
   const targetBooking = userBookings.find(b => b.id === pendingCancelBookingId);
-
   userBookings = userBookings.filter(b => b.id !== pendingCancelBookingId);
   localStorage.setItem('userBookings', JSON.stringify(userBookings));
 
@@ -1365,25 +1262,17 @@ btnConfirmCancelBooking.onclick = async function () {
 
   if (targetBooking && targetBooking.userEmail) {
     try {
-      const res = await fetch(`${API_URL}/bookings/cancel-email`, {
+      await fetch(`${API_URL}/bookings/cancel-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(targetBooking)
       });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        console.error('Cancellation email server error:', errorData);
-      } else {
-        console.log('Cancellation email dispatched successfully');
-      }
     } catch (err) {
-      console.error('Network error sending cancellation email:', err);
+      console.error('Error dispatching cancellation email:', err);
     }
   }
 
   pendingCancelBookingId = null;
-
   showToast('Booking cancelled. Confirmation email sent & 100% refund credited.');
 
   if (currentFilter === 'bookings') {
@@ -1450,13 +1339,18 @@ function renderBookings() {
           </p>
         </div>
         <div style="display: flex; gap: 8px; margin-top: 4px;">
-          <button class="btn-card" onclick='showReceipt(${JSON.stringify(b)})'>View Receipt</button>
+          <button class="btn-card" onclick="openReceiptById('${b.id}')">View Receipt</button>
           <button class="btn-card btn-delete" onclick="promptCancelBooking('${b.id}')">Cancel</button>
         </div>
       </article>
     `;
   }).join('');
 }
+
+window.openReceiptById = function(bookingId) {
+  const b = userBookings.find(item => item.id === bookingId);
+  if (b) showReceipt(b);
+};
 
 async function renderWishlist() {
   utilityControls.style.display = 'none';
@@ -1473,6 +1367,7 @@ async function renderWishlist() {
   }
 
   renderSkeletons();
+  showLoader();
 
   try {
     if (!allListingsCache.length) {
@@ -1496,8 +1391,8 @@ async function renderWishlist() {
     renderListings(savedListings);
   } catch (err) {
     console.error('Failed to load wishlist items:', err);
-    const savedListings = currentListingsData.filter(item => likedIds.includes(item._id));
-    renderListings(savedListings);
+  } finally {
+    hideLoader();
   }
 }
 
@@ -1515,8 +1410,9 @@ function renderMyListings() {
     return;
   }
 
+  const currentUserId = currentUser.id || currentUser._id;
   const sourceData = allListingsCache.length ? allListingsCache : currentListingsData;
-  const owned = sourceData.filter(item => item.owner && (item.owner._id === currentUser.id || item.owner === currentUser.id));
+  const owned = sourceData.filter(item => item.owner && ((item.owner._id || item.owner) === currentUserId));
 
   if (!owned.length) {
     listingsGrid.innerHTML = `
@@ -1597,6 +1493,7 @@ listingForm.addEventListener('submit', async (e) => {
     }
   }
 
+  showLoader();
   try {
     const url = isEditing ? `${API_URL}/${id}` : API_URL;
     const method = isEditing ? 'PUT' : 'POST';
@@ -1619,10 +1516,13 @@ listingForm.addEventListener('submit', async (e) => {
     }
   } catch (err) {
     console.error('Form submission failed:', err);
+  } finally {
+    hideLoader();
   }
 });
 
 window.openEditModal = async function (id) {
+  showLoader();
   try {
     const res = await fetch(`${API_URL}/${id}`);
     const data = await res.json();
@@ -1639,6 +1539,8 @@ window.openEditModal = async function (id) {
     listingModal.classList.add('show');
   } catch (err) {
     console.error(err);
+  } finally {
+    hideLoader();
   }
 };
 
@@ -1665,6 +1567,108 @@ document.getElementById('closeModalBtn').onclick = () => listingModal.classList.
 document.getElementById('closeDetailModalBtn').onclick = () => detailModal.classList.remove('show');
 document.getElementById('openCreateModalBtn').onclick = openCreateModal;
 
+// ==========================================
+// ADMIN PORTAL CLIENT-SIDE HANDLERS
+// ==========================================
+window.openAdminModal = async function () {
+  if (!currentUser || !currentUser.isAdmin) {
+    showToast('Unauthorized: Admin access restricted.');
+    return;
+  }
+
+  userDropdown.classList.remove('show');
+  showLoader();
+
+  try {
+    const metricsRes = await fetch(`${API_URL}/admin/metrics`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!metricsRes.ok) throw new Error('Failed to load metrics');
+    const metrics = await metricsRes.json();
+
+    document.getElementById('adMetricTotalListings').innerText = metrics.totalListings;
+    document.getElementById('adMetricTotalUsers').innerText = metrics.totalUsers;
+    document.getElementById('adMetricStays').innerText = metrics.staysCount;
+    document.getElementById('adMetricDining').innerText = metrics.diningCount;
+
+    if (!allListingsCache.length) {
+      const res = await fetch(`${API_URL}?type=all`);
+      allListingsCache = await res.json();
+    }
+
+    const tableBody = document.getElementById('adminListingsTableBody');
+    tableBody.innerHTML = allListingsCache.map(item => `
+      <tr>
+        <td>
+          <img src="${resolveImage(item.images && item.images.length ? item.images[0] : item.image)}" class="admin-thumb" alt="${item.title}" />
+        </td>
+        <td><strong>${item.title}</strong></td>
+        <td><span class="pill-badge" style="padding: 3px 8px; font-size: 0.75rem;">${item.type === 'hotel' ? 'Stay' : 'Dining'}</span></td>
+        <td>₹${Number(item.price).toLocaleString()}</td>
+        <td>${item.location}</td>
+        <td>
+          <button class="admin-del-btn" onclick="promptAdminDeleteListing('${item._id}', '${item.title.replace(/'/g, "\\'")}')">
+            <i class="fa-solid fa-trash-can"></i> Force Delete
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    adminModal.classList.add('show');
+  } catch (err) {
+    console.error('Admin modal error:', err);
+    showToast('Could not load Admin Dashboard');
+  } finally {
+    hideLoader();
+  }
+};
+
+window.closeAdminModal = function () {
+  if (adminModal) adminModal.classList.remove('show');
+};
+
+// Open the Luxury Modal Confirmation Dialog instead of window.confirm
+window.promptAdminDeleteListing = function (id, title) {
+  pendingAdminDeleteListingId = id;
+  if (adminTargetListingTitle) {
+    adminTargetListingTitle.innerText = `"${title}"`;
+  }
+  adminDeleteModal.classList.add('show');
+};
+
+window.closeAdminDeleteModal = function () {
+  pendingAdminDeleteListingId = null;
+  adminDeleteModal.classList.remove('show');
+};
+
+btnConfirmAdminDelete.onclick = async function () {
+  if (!pendingAdminDeleteListingId) return;
+  const id = pendingAdminDeleteListingId;
+  closeAdminDeleteModal();
+
+  showLoader();
+  try {
+    const res = await fetch(`${API_URL}/admin/force-delete/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+
+    if (res.ok) {
+      showToast('Property permanently removed by Admin.');
+      allListingsCache = [];
+      await openAdminModal();
+      fetchListings();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.message || 'Force delete failed');
+    }
+  } catch (err) {
+    showToast('Network error during admin delete');
+  } finally {
+    hideLoader();
+  }
+};
+
 window.onclick = (e) => {
   if (e.target === listingModal) listingModal.classList.remove('show');
   if (e.target === detailModal) detailModal.classList.remove('show');
@@ -1675,6 +1679,8 @@ window.onclick = (e) => {
   if (e.target === confirmCancelModal) confirmCancelModal.classList.remove('show');
   if (e.target === deleteReviewModal) deleteReviewModal.classList.remove('show');
   if (e.target === deleteListingModal) deleteListingModal.classList.remove('show');
+  if (e.target === adminModal) adminModal.classList.remove('show');
+  if (e.target === adminDeleteModal) adminDeleteModal.classList.remove('show');
   const infoModal = document.getElementById('infoModal');
   if (infoModal && e.target === infoModal) infoModal.classList.remove('show');
 };
@@ -1703,131 +1709,57 @@ const siteFooterContent = {
       <p><strong>VestaGo</strong> connects curious travelers and food enthusiasts with handpicked boutique villas, beach retreats, and curated culinary dining experiences across India and beyond.</p>
       <h4>Our Philosophy</h4>
       <p>Whether you're seeking a secluded coastal villa in Malvan or an artisanal bistro table in Delhi, VestaGo guarantees verified spaces and transparent reservations.</p>
-      <h4>What Sets Us Apart</h4>
-      <ul>
-        <li><strong>VestaVerified Listings:</strong> Hand-inspected hosts and venues with high quality standards.</li>
-        <li><strong>Seamless Integrated Checkout:</strong> Secure payments via Cards, UPI, and Net Banking.</li>
-        <li><strong>Authentic Community:</strong> Real reviews written exclusively by verified guests.</li>
-      </ul>
     `
   },
   vestacover: {
     title: "VestaCover Protection",
     html: `
       <p>Every booking through VestaGo automatically includes <strong>VestaCover</strong> — complimentary coverage built directly into your stay or dining reservation.</p>
-      <h4>What's Included:</h4>
       <ul>
         <li><strong>Booking Guarantee:</strong> If a host cancels within 48 hours of check-in, we will find an equal or better stay or refund 100% instantly.</li>
         <li><strong>Listing Inaccuracy Protection:</strong> If a place differs substantially from its photos or amenities, we'll step in to make it right.</li>
-        <li><strong>24/7 Safety Hotline:</strong> Direct priority assistance anytime during your trip.</li>
       </ul>
     `
   },
   antidiscrimination: {
     title: "Anti-discrimination Policy",
-    html: `
-      <p>At VestaGo, everyone belongs. We prohibit discrimination against any guest or host on the basis of:</p>
-      <ul>
-        <li>Race, ethnicity, national origin, or caste</li>
-        <li>Religion or spiritual beliefs</li>
-        <li>Sexual orientation or gender identity</li>
-        <li>Marital status or familial background</li>
-        <li>Physical disabilities or accessibility requirements</li>
-      </ul>
-      <p>Violations result in immediate removal of accounts and property listings.</p>
-    `
+    html: `<p>At VestaGo, everyone belongs. We prohibit discrimination against any guest or host.</p>`
   },
   accessibility: {
     title: "Accessibility at VestaGo",
-    html: `
-      <p>We believe travel and culinary spaces must be accessible to everyone.</p>
-      <h4>Host Standards</h4>
-      <p>Hosts are encouraged to list specific accessibility amenities such as step-free access, wide doorways, ground-floor bedrooms, and accessible parking.</p>
-      <p>Need custom accommodations before your trip? Contact the host directly via your booking voucher.</p>
-    `
+    html: `<p>We believe travel and culinary spaces must be accessible to everyone.</p>`
   },
   community: {
     title: "Community Guidelines",
-    html: `
-      <p>Our guidelines keep the VestaGo ecosystem respectful, trustworthy, and welcoming:</p>
-      <ul>
-        <li><strong>Respect the Neighborhood:</strong> Mind local noise restrictions and quiet hours after 10 PM.</li>
-        <li><strong>Honest Portrayal:</strong> Hosts must keep photos, amenities, and price points up to date.</li>
-        <li><strong>Authentic Feedback:</strong> Reviews must represent truthful, first-hand guest experiences.</li>
-      </ul>
-    `
+    html: `<p>Our guidelines keep the VestaGo ecosystem respectful, trustworthy, and welcoming.</p>`
   },
   hostresources: {
     title: "Host Resources & Support",
-    html: `
-      <p>Hosting on VestaGo turns your unique property or culinary kitchen into a thriving destination.</p>
-      <h4>Tips for Success:</h4>
-      <ul>
-        <li><strong>High-Resolution Photography:</strong> Spaces with multiple clear images receive 3x more bookings.</li>
-        <li><strong>Competitive Pricing:</strong> Review local market averages to set balanced weekday and weekend rates.</li>
-        <li><strong>Prompt Communication:</strong> Fast responses maintain high guest review scores and superhost status.</li>
-      </ul>
-    `
+    html: `<p>Hosting on VestaGo turns your unique property or culinary kitchen into a thriving destination.</p>`
   },
   help: {
     title: "VestaGo Help Center",
-    html: `
-      <p>Have questions about your itinerary, hosting, or payments? We're here to help.</p>
-      <h4>Common Topics:</h4>
-      <ul>
-        <li><strong>Modifying a Reservation:</strong> Go to <em>My Bookings</em> to view or cancel active itineraries.</li>
-        <li><strong>VestaPay Receipts:</strong> Detailed tax invoices and booking vouchers are downloadable from your bookings page.</li>
-        <li><strong>Email Support:</strong> Write to our team at <code>support@vestago.com</code> for account verification issues.</li>
-      </ul>
-    `
+    html: `<p>Have questions about your itinerary, hosting, or payments? Contact us at <code>support@vestago.com</code>.</p>`
   },
   cancellation: {
     title: "Cancellation & Refund Policies",
-    html: `
-      <p>Transparent cancellation keeps reservations stress-free for both guests and hosts.</p>
-      <h4>Standard Policy:</h4>
-      <ul>
-        <li><strong>Full Refund:</strong> Cancellations made up to 48 hours prior to check-in receive a 100% full refund through VestaPay.</li>
-        <li><strong>Late Cancellations:</strong> Cancellations made within 48 hours of check-in may retain standard cleaning and first-night tariffs.</li>
-      </ul>
-    `
+    html: `<p>Cancellations made up to 48 hours prior to check-in receive a 100% full refund through VestaPay.</p>`
   },
   neighborhood: {
     title: "Report a Neighborhood Concern",
-    html: `
-      <p>Are you a neighbor experiencing issues related to a nearby VestaGo property (such as noise, parking, or trash)?</p>
-      <p>Please email <code>concerns@vestago.com</code> with the property address. Our local trust & safety team investigates reports within 24 hours.</p>
-    `
+    html: `<p>Please email <code>concerns@vestago.com</code> with the property address.</p>`
   },
   privacy: {
     title: "Privacy Policy",
-    html: `
-      <p>VestaGo respects your privacy. We collect minimal personal data (such as email, name, and booking history) strictly to facilitate reservations, verify guest reviews, and process secure payments.</p>
-      <p>Your payment details (cards, UPI IDs) are processed through encrypted sandbox gateways and are never stored in raw text on our servers.</p>
-    `
+    html: `<p>VestaGo respects your privacy. We collect minimal personal data strictly to facilitate reservations.</p>`
   },
   terms: {
     title: "Terms of Service",
-    html: `
-      <p>By listing or booking on VestaGo, you agree to our standard platform terms:</p>
-      <ul>
-        <li>All users must provide authentic names and valid email addresses.</li>
-        <li>Hosts are responsible for local compliance, occupancy taxes, and permits.</li>
-        <li>Damages incurred during stays are subject to resolution under the VestaCover policy.</li>
-      </ul>
-    `
+    html: `<p>By listing or booking on VestaGo, you agree to our standard platform terms.</p>`
   },
   sitemap: {
     title: "VestaGo Sitemap",
-    html: `
-      <p>Quick directory of VestaGo platform destinations:</p>
-      <ul>
-        <li><strong>Stays & Villas:</strong> Explore curated villas, coastal cottages, and holiday stays.</li>
-        <li><strong>Dining & Bistros:</strong> Reserve tables at artisan cafes and fine dining restaurants.</li>
-        <li><strong>Host Dashboard:</strong> List and manage your properties.</li>
-        <li><strong>Guest Hub:</strong> Access your Wishlist, Bookings, and confirmed vouchers.</li>
-      </ul>
-    `
+    html: `<p>Quick directory of VestaGo platform destinations across Stays, Dining, and Experiences.</p>`
   }
 };
 

@@ -17,6 +17,15 @@
 </head>
 <body>
 
+  <!-- Full-Page Interactive Luxury Loading Screen -->
+  <div id="globalLoader" class="global-loader" aria-hidden="true">
+    <div class="loader-bar"></div>
+    <div class="loader-spinner-wrapper">
+      <div class="luxury-spinner"></div>
+      <span class="loader-text">Loading VestaGo...</span>
+    </div>
+  </div>
+
   <!-- Top Navigation Bar -->
   <header class="navbar" role="banner">
     <div class="logo" onclick="resetToHome()" tabindex="0" role="button" aria-label="VestaGo Home">
@@ -35,8 +44,8 @@
     </div>
 
     <div class="nav-actions">
-      <!-- Dark / Light Mode Toggle Button -->
-      <button class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle Dark / Light Mode" title="Toggle theme">
+      <!-- Dark / Light Mode Toggle Button (Desktop/Tablet) -->
+      <button class="theme-toggle-btn header-theme-toggle" id="themeToggleBtn" aria-label="Toggle Dark / Light Mode" title="Toggle theme">
         <i class="fa-solid fa-moon" id="themeToggleIcon"></i>
       </button>
 
@@ -50,6 +59,13 @@
         </button>
 
         <div class="user-dropdown" id="userDropdown">
+          <!-- Mobile Theme Switcher inside Hamburger -->
+          <button class="dropdown-item dropdown-theme-btn" id="menuThemeToggleBtn">
+            <i class="fa-solid fa-moon" id="menuThemeToggleIcon"></i>
+            <span id="menuThemeToggleText">Dark Mode</span>
+          </button>
+          <div class="dropdown-divider mobile-only-divider"></div>
+
           <div id="loggedOutMenu">
             <button class="dropdown-item bold" onclick="openAuthModal('Sign Up')">Sign up</button>
             <button class="dropdown-item" onclick="openAuthModal('Log In')">Log in</button>
@@ -57,6 +73,10 @@
           <div id="loggedInMenu" style="display: none;">
             <div class="dropdown-user-info" id="userNameDisplay">Welcome</div>
             <div class="dropdown-divider"></div>
+            <!-- Admin Portal Link (Only visible if user has isAdmin: true) -->
+            <button class="dropdown-item bold text-admin" id="adminMenuBtn" style="display: none;" onclick="openAdminModal()">
+              <i class="fa-solid fa-shield-halved"></i> Admin Portal
+            </button>
             <button class="dropdown-item" onclick="showDashboardTab('bookings')"><i class="fa-solid fa-ticket"></i> My Bookings</button>
             <button class="dropdown-item" onclick="showDashboardTab('wishlist')"><i class="fa-solid fa-heart"></i> My Wishlist</button>
             <button class="dropdown-item" onclick="showDashboardTab('myListings')"><i class="fa-solid fa-house-user"></i> My Listed Places</button>
@@ -148,6 +168,71 @@
     <div id="listingsGrid" class="listings-grid" aria-live="polite"></div>
   </main>
 
+  <!-- ADMIN PORTAL MODAL -->
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal-card admin-dashboard-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <i class="fa-solid fa-shield-halved" style="color: var(--primary); font-size: 1.4rem;"></i>
+          <h3 style="margin: 0;">VestaGo Executive Admin Portal</h3>
+        </div>
+        <button class="close-btn" onclick="closeAdminModal()">&times;</button>
+      </div>
+
+      <!-- Admin Metric KPI Cards -->
+      <div class="admin-metrics-grid">
+        <div class="metric-card">
+          <span class="metric-label">Total Listings</span>
+          <strong class="metric-value" id="adMetricTotalListings">0</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Registered Users</span>
+          <strong class="metric-value" id="adMetricTotalUsers">0</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Villas & Stays</span>
+          <strong class="metric-value" id="adMetricStays">0</strong>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Bistros & Cafes</span>
+          <strong class="metric-value" id="adMetricDining">0</strong>
+        </div>
+      </div>
+
+      <h4 style="margin: 24px 0 12px; font-size: 1.05rem;">All Properties (Admin Control)</h4>
+      <div class="admin-table-container">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Preview</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Location</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="adminListingsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN FORCE DELETE CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="adminDeleteModal">
+    <div class="modal-card confirm-dialog-card admin-confirm-card">
+      <div class="confirm-icon"><i class="fa-solid fa-shield-halved" style="color: #ff385c;"></i></div>
+      <h3>Remove Property as Admin?</h3>
+      <p class="confirm-text">
+        Are you sure you want to permanently remove <strong id="adminTargetListingTitle">this property</strong> from VestaGo? This administrative override bypasses ownership and cannot be undone.
+      </p>
+      <div class="confirm-actions">
+        <button class="btn-cancel-action" id="btnConfirmAdminDelete">Yes, Force Delete</button>
+        <button class="btn-keep-action" onclick="closeAdminDeleteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- BOOKING & CHECKOUT MODAL -->
   <div class="modal-overlay" id="checkoutModal">
     <div class="modal-card checkout-card">
@@ -157,7 +242,6 @@
       </div>
 
       <div class="checkout-layout">
-        <!-- Details Column -->
         <div class="checkout-form-col">
           <div class="trip-meta-box">
             <h4>Your Reservation</h4>
@@ -191,7 +275,7 @@
               </button>
             </div>
 
-            <!-- Card Form Fields -->
+            <!-- Card Fields -->
             <div class="payment-input-panel active" id="panelPayCard">
               <div class="interactive-input-group">
                 <label for="payCardNumber">Card Number</label>
@@ -212,11 +296,11 @@
               </div>
               <div class="interactive-input-group">
                 <label for="payCardHolder">Cardholder Name</label>
-                <input type="text" id="payCardHolder" placeholder="e.g. Aaron Fernandes" autocomplete="cc-name" />
+                <input type="text" id="payCardHolder" placeholder="Cardholder Name" autocomplete="cc-name" />
               </div>
             </div>
 
-            <!-- UPI Form Fields -->
+            <!-- UPI Fields -->
             <div class="payment-input-panel" id="panelPayUpi">
               <div class="interactive-input-group">
                 <label for="payUpiId">UPI ID / VPA</label>
@@ -234,14 +318,14 @@
               <small class="help-text">A payment collect request will be sent directly to your UPI app.</small>
             </div>
 
-            <!-- Net Banking Form Fields -->
+            <!-- Net Banking Fields -->
             <div class="payment-input-panel" id="panelPayNetbanking">
               <div class="interactive-input-group">
                 <label for="payBankSelect">Select Your Bank</label>
                 <select id="payBankSelect">
                   <option value="">-- Choose a Bank --</option>
                   <option value="HDFC Bank">HDFC Bank</option>
-                  <option value="State Bank of India">State Bank of India (SBI)</option>
+                  <option value="State Bank of India (SBI)">State Bank of India (SBI)</option>
                   <option value="ICICI Bank">ICICI Bank</option>
                   <option value="Axis Bank">Axis Bank</option>
                   <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
@@ -260,7 +344,7 @@
           </button>
         </div>
 
-        <!-- Price Breakdown Column -->
+        <!-- Summary Column -->
         <div class="checkout-summary-col">
           <div class="summary-item-header">
             <img id="ckListingImg" src="" alt="Thumbnail" />
