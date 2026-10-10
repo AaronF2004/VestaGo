@@ -39,13 +39,11 @@ function applyTheme(theme) {
   const isDark = theme === 'dark';
   document.body.classList.toggle('dark-mode', isDark);
 
-  // Sync Header Button
   if (themeToggleIcon) {
     themeToggleIcon.classList.toggle('fa-sun', isDark);
     themeToggleIcon.classList.toggle('fa-moon', !isDark);
   }
 
-  // Sync Mobile Menu Button
   if (menuThemeToggleIcon) {
     menuThemeToggleIcon.classList.toggle('fa-sun', isDark);
     menuThemeToggleIcon.classList.toggle('fa-moon', !isDark);
@@ -118,6 +116,9 @@ let currentBookingNights = 1;
 let currentGuestsCount = 1;
 let selectedPaymentMethod = 'card';
 let activeReceiptBooking = null;
+
+// Flag to prevent pushing duplicate history states during popstate
+let isNavigatingHistory = false;
 
 // DOM References
 const listingsGrid = document.getElementById('listingsGrid');
@@ -194,6 +195,71 @@ const payUpiId = document.getElementById('payUpiId');
 const payBankSelect = document.getElementById('payBankSelect');
 const payValidationError = document.getElementById('payValidationError');
 
+// =============================================================
+// HISTORY NAVIGATION (ONE-BY-ONE BACK ROUTING & PERSISTENT URLS)
+// =============================================================
+function pushAppState(stateObj, title, urlParams) {
+  if (isNavigatingHistory) return;
+  const newUrl = urlParams ? `${window.location.pathname}?${urlParams}` : window.location.pathname;
+  window.history.pushState(stateObj, title || '', newUrl);
+}
+
+function updateAppStateUrl(urlParams) {
+  if (isNavigatingHistory) return;
+  const newUrl = urlParams ? `${window.location.pathname}?${urlParams}` : window.location.pathname;
+  window.history.replaceState({ filter: currentFilter }, '', newUrl);
+}
+
+function closeAllModalsDirectly() {
+  const modals = [
+    listingModal, detailModal, authModal, filterModal, receiptModal,
+    checkoutModal, confirmCancelModal, deleteReviewModal, deleteListingModal,
+    adminModal, adminDeleteModal
+  ];
+  modals.forEach(m => {
+    if (m) m.classList.remove('show');
+  });
+  const infoModal = document.getElementById('infoModal');
+  if (infoModal) infoModal.classList.remove('show');
+}
+
+// Browser Back/Forward Button handler
+window.addEventListener('popstate', async (event) => {
+  isNavigatingHistory = true;
+  try {
+    closeAllModalsDirectly();
+    const state = event.state;
+    const urlParams = new URLSearchParams(window.location.search);
+    const listingId = urlParams.get('listing');
+    const view = urlParams.get('view');
+    const filter = urlParams.get('filter') || 'all';
+
+    if (state && state.modal === 'detail' && state.id) {
+      await openDetailModal(state.id, false);
+    } else if (state && state.modal === 'admin') {
+      await openAdminModal(false);
+    } else if (state && state.modal === 'receipt' && state.booking) {
+      showReceipt(state.booking, false);
+    } else if (listingId) {
+      await openDetailModal(listingId, false);
+    } else if (view === 'admin') {
+      await openAdminModal(false);
+    } else if (view === 'bookings' || view === 'wishlist' || view === 'myListings') {
+      currentFilter = view;
+      updateActiveTabUI();
+      if (view === 'bookings') renderBookings();
+      if (view === 'wishlist') await renderWishlist();
+      if (view === 'myListings') renderMyListings();
+    } else {
+      currentFilter = filter;
+      updateActiveTabUI();
+      await fetchListings();
+    }
+  } finally {
+    isNavigatingHistory = false;
+  }
+});
+
 // Date Pickers initialization
 function initDatePickers() {
   if (!searchCheckin || !searchCheckout) return;
@@ -237,8 +303,6 @@ function initDatePickers() {
 }
 
 initDatePickers();
-
-// Sync Auth UI with Admin Visibility Guard
 syncAuthUI();
 
 function syncAuthUI() {
@@ -247,7 +311,6 @@ function syncAuthUI() {
     loggedInMenu.style.display = 'block';
     userNameDisplay.innerText = `Hi, ${currentUser.name}`;
 
-    // Admin Access Guard: ONLY visible if user has isAdmin: true
     if (adminMenuBtn) {
       adminMenuBtn.style.display = currentUser.isAdmin ? 'flex' : 'none';
     }
@@ -351,7 +414,8 @@ authForm.addEventListener('submit', async (e) => {
       showToast(`Welcome back, ${currentUser.name}!`);
     }
 
-    fetchListings();
+    allListingsCache = [];
+    await fetchListings();
   } catch (err) {
     authErrorMsg.innerText = 'Server error. Please try again.';
     authErrorMsg.style.display = 'block';
@@ -372,7 +436,9 @@ window.logoutUser = function () {
   userDropdown.classList.remove('show');
   currentFilter = 'all';
   updateActiveTabUI();
+  updateAppStateUrl('');
   showToast('Logged out of VestaGo');
+  allListingsCache = [];
   fetchListings();
 };
 
@@ -554,12 +620,13 @@ async function initDetailMap(locationQuery, title) {
 }
 
 // -------------------------------------------------------------
-// DETAIL MODAL
+// DETAIL MODAL (PUSH STATE FOR 1-BY-1 BACK NAVIGATION)
 // -------------------------------------------------------------
-window.openDetailModal = async function (id) {
+window.openDetailModal = async function (id, shouldPushState = true) {
   showLoader();
   try {
     const res = await fetch(`${API_URL}/${id}`);
+    if (!res.ok) throw new Error('Listing not found');
     const item = await res.json();
     const images = (item.images && item.images.length) ? item.images : [item.image || ''];
     selectedRatingScore = 5;
@@ -678,6 +745,10 @@ window.openDetailModal = async function (id) {
 
     detailModal.classList.add('show');
 
+    if (shouldPushState) {
+      pushAppState({ modal: 'detail', id: item._id }, item.title, `listing=${item._id}`);
+    }
+
     const dtIn = document.getElementById('detailCheckin');
     const dtOut = document.getElementById('detailCheckout');
     const dtGuests = document.getElementById('detailGuests');
@@ -719,9 +790,15 @@ window.openDetailModal = async function (id) {
 
   } catch (err) {
     console.error('Failed to load item detail:', err);
+    showToast('Failed to open listing.');
   } finally {
     hideLoader();
   }
+};
+
+window.closeDetailModal = function() {
+  detailModal.classList.remove('show');
+  updateAppStateUrl(currentFilter !== 'all' ? `filter=${currentFilter}` : '');
 };
 
 window.setRating = function (score) {
@@ -755,7 +832,8 @@ window.handleReviewSubmit = async function (e, id) {
     });
 
     if (res.ok) {
-      await openDetailModal(id);
+      allListingsCache = [];
+      await openDetailModal(id, false);
       showToast('Review posted successfully!');
       fetchListings();
     } else {
@@ -811,7 +889,8 @@ btnConfirmDeleteReview.onclick = async function () {
 
     if (res.ok) {
       showToast('Review deleted permanently');
-      await openDetailModal(listingId);
+      allListingsCache = [];
+      await openDetailModal(listingId, false);
       fetchListings();
     } else {
       const err = await res.json().catch(() => ({}));
@@ -848,7 +927,7 @@ btnConfirmDeleteListing.onclick = async function () {
     if (res.ok) {
       showToast('Listing has been successfully deleted.');
       allListingsCache = [];
-      fetchListings();
+      await fetchListings();
     } else {
       const err = await res.json().catch(() => ({}));
       showToast(err.message || 'Could not delete listing');
@@ -1000,10 +1079,14 @@ window.validateAndOpenGateway = function(listingId, title, type, price, location
 
   detailModal.classList.remove('show');
   checkoutModal.classList.add('show');
+  pushAppState({ modal: 'checkout', id: listingId }, 'Checkout', `view=checkout&listing=${listingId}`);
 };
 
 window.closeCheckoutModal = function () {
   checkoutModal.classList.remove('show');
+  if (activeCheckoutItem && activeCheckoutItem.listingId) {
+    openDetailModal(activeCheckoutItem.listingId, false);
+  }
 };
 
 window.executeMockPayment = function () {
@@ -1094,7 +1177,7 @@ window.executeMockPayment = function () {
       body: JSON.stringify(newBooking)
     }).catch(err => console.error('Booking confirmation email error:', err));
 
-    showReceipt(newBooking);
+    showReceipt(newBooking, true);
     showToast('Payment successful! Booking confirmed & voucher emailed.');
   }, 1200);
 };
@@ -1105,7 +1188,7 @@ function showPaymentError(msg) {
   payValidationError.style.display = 'block';
 }
 
-function showReceipt(booking) {
+function showReceipt(booking, shouldPushState = true) {
   activeReceiptBooking = booking;
 
   const checkIn = booking.checkInDate || (booking.dates && booking.dates.includes(' to ') ? booking.dates.split(' to ')[0] : 'Confirmed');
@@ -1174,6 +1257,10 @@ function showReceipt(booking) {
 
   btnCancelBookingModal.onclick = () => promptCancelBooking(booking.id);
   receiptModal.classList.add('show');
+
+  if (shouldPushState) {
+    pushAppState({ modal: 'receipt', booking }, `Receipt ${booking.id}`, `view=receipt&id=${booking.id}`);
+  }
 }
 
 function downloadReceiptPdf(booking) {
@@ -1238,6 +1325,7 @@ function downloadReceiptPdf(booking) {
 
 window.closeReceiptModal = function () {
   receiptModal.classList.remove('show');
+  updateAppStateUrl(currentFilter !== 'all' ? `filter=${currentFilter}` : '');
 };
 
 window.promptCancelBooking = function (bookingId) {
@@ -1275,6 +1363,7 @@ btnConfirmCancelBooking.onclick = async function () {
   pendingCancelBookingId = null;
   showToast('Booking cancelled. Confirmation email sent & 100% refund credited.');
 
+  // Smooth refresh of current active views
   if (currentFilter === 'bookings') {
     renderBookings();
   }
@@ -1284,6 +1373,7 @@ window.showDashboardTab = function (tabName) {
   userDropdown.classList.remove('show');
   currentFilter = tabName;
   updateActiveTabUI();
+  pushAppState({ filter: tabName }, tabName, `view=${tabName}`);
   if (tabName === 'bookings') renderBookings();
   if (tabName === 'wishlist') renderWishlist();
   if (tabName === 'myListings') renderMyListings();
@@ -1349,7 +1439,7 @@ function renderBookings() {
 
 window.openReceiptById = function(bookingId) {
   const b = userBookings.find(item => item.id === bookingId);
-  if (b) showReceipt(b);
+  if (b) showReceipt(b, true);
 };
 
 async function renderWishlist() {
@@ -1436,6 +1526,7 @@ window.resetToHome = function () {
   if (searchGuests) searchGuests.value = '';
   initDatePickers();
   updateActiveTabUI();
+  updateAppStateUrl('');
   fetchListings();
 };
 
@@ -1464,7 +1555,7 @@ window.toggleLike = function (e, id) {
   if (currentFilter === 'wishlist') {
     renderWishlist();
   } else {
-    fetchListings();
+    renderListings(currentListingsData);
   }
 };
 
@@ -1508,8 +1599,10 @@ listingForm.addEventListener('submit', async (e) => {
       listingModal.classList.remove('show');
       listingForm.reset();
       showToast(isEditing ? 'Listing updated successfully!' : 'Listing published on VestaGo!');
+      
+      // Auto-refresh data and reset cache
       allListingsCache = [];
-      fetchListings();
+      await fetchListings();
     } else {
       const errData = await response.json();
       showToast(errData.message || 'Operation failed');
@@ -1564,13 +1657,13 @@ window.applyFilters = function () {
 };
 
 document.getElementById('closeModalBtn').onclick = () => listingModal.classList.remove('show');
-document.getElementById('closeDetailModalBtn').onclick = () => detailModal.classList.remove('show');
+document.getElementById('closeDetailModalBtn').onclick = () => closeDetailModal();
 document.getElementById('openCreateModalBtn').onclick = openCreateModal;
 
 // ==========================================
 // ADMIN PORTAL CLIENT-SIDE HANDLERS
 // ==========================================
-window.openAdminModal = async function () {
+window.openAdminModal = async function (shouldPushState = true) {
   if (!currentUser || !currentUser.isAdmin) {
     showToast('Unauthorized: Admin access restricted.');
     return;
@@ -1615,6 +1708,9 @@ window.openAdminModal = async function () {
     `).join('');
 
     adminModal.classList.add('show');
+    if (shouldPushState) {
+      pushAppState({ modal: 'admin' }, 'Admin Portal', 'view=admin');
+    }
   } catch (err) {
     console.error('Admin modal error:', err);
     showToast('Could not load Admin Dashboard');
@@ -1625,9 +1721,9 @@ window.openAdminModal = async function () {
 
 window.closeAdminModal = function () {
   if (adminModal) adminModal.classList.remove('show');
+  updateAppStateUrl(currentFilter !== 'all' ? `filter=${currentFilter}` : '');
 };
 
-// Open the Luxury Modal Confirmation Dialog instead of window.confirm
 window.promptAdminDeleteListing = function (id, title) {
   pendingAdminDeleteListingId = id;
   if (adminTargetListingTitle) {
@@ -1656,7 +1752,7 @@ btnConfirmAdminDelete.onclick = async function () {
     if (res.ok) {
       showToast('Property permanently removed by Admin.');
       allListingsCache = [];
-      await openAdminModal();
+      await openAdminModal(false);
       fetchListings();
     } else {
       const err = await res.json().catch(() => ({}));
@@ -1671,15 +1767,15 @@ btnConfirmAdminDelete.onclick = async function () {
 
 window.onclick = (e) => {
   if (e.target === listingModal) listingModal.classList.remove('show');
-  if (e.target === detailModal) detailModal.classList.remove('show');
+  if (e.target === detailModal) closeDetailModal();
   if (e.target === authModal) authModal.classList.remove('show');
   if (e.target === filterModal) filterModal.classList.remove('show');
-  if (e.target === receiptModal) receiptModal.classList.remove('show');
-  if (e.target === checkoutModal) checkoutModal.classList.remove('show');
+  if (e.target === receiptModal) closeReceiptModal();
+  if (e.target === checkoutModal) closeCheckoutModal();
   if (e.target === confirmCancelModal) confirmCancelModal.classList.remove('show');
   if (e.target === deleteReviewModal) deleteReviewModal.classList.remove('show');
   if (e.target === deleteListingModal) deleteListingModal.classList.remove('show');
-  if (e.target === adminModal) adminModal.classList.remove('show');
+  if (e.target === adminModal) closeAdminModal();
   if (e.target === adminDeleteModal) adminDeleteModal.classList.remove('show');
   const infoModal = document.getElementById('infoModal');
   if (infoModal && e.target === infoModal) infoModal.classList.remove('show');
@@ -1689,6 +1785,7 @@ filterTabs.forEach((tab) => {
   tab.addEventListener('click', () => {
     currentFilter = tab.dataset.filter;
     updateActiveTabUI();
+    pushAppState({ filter: currentFilter }, currentFilter, currentFilter !== 'all' ? `filter=${currentFilter}` : '');
     fetchListings();
   });
 });
@@ -1845,5 +1942,35 @@ window.closeInfoModal = function() {
   typeStep();
 })();
 
-// Initial Fetch
-fetchListings();
+// =============================================================
+// INITIAL RESTORATION (HANDLES REFRESH ON ANY PAGE / MODAL)
+// =============================================================
+async function initPageLoad() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetListing = urlParams.get('listing');
+  const targetView = urlParams.get('view');
+  const targetFilter = urlParams.get('filter');
+
+  if (targetFilter) {
+    currentFilter = targetFilter;
+    updateActiveTabUI();
+  }
+
+  // Initial fetch of listings
+  await fetchListings();
+
+  // Deep-link restoration if user refreshed on a specific modal or screen
+  if (targetListing) {
+    await openDetailModal(targetListing, false);
+  } else if (targetView === 'admin' && currentUser && currentUser.isAdmin) {
+    await openAdminModal(false);
+  } else if (targetView === 'bookings') {
+    showDashboardTab('bookings');
+  } else if (targetView === 'wishlist') {
+    showDashboardTab('wishlist');
+  } else if (targetView === 'myListings') {
+    showDashboardTab('myListings');
+  }
+}
+
+initPageLoad();
